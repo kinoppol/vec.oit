@@ -17,6 +17,9 @@ uploads/*.pdf
 .env
 .env.*
 
+# Installer lock file (created by install.php on success)
+.installed
+
 # IDE / OS
 .DS_Store
 Thumbs.db

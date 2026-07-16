@@ -70,9 +70,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $reqOk && empty($locked)) {
                     $pdo->exec($stmt);
                     $okCnt++;
                 } catch (PDOException $e) {
-                    $code = (int)$e->getCode();
-                    if ($code === 1062 || $code === 1061 || $code === 1060) {
-                        // Duplicate key / index / column — data already exists, safe to skip
+                    // MySQL error number is in errorInfo[1]; getCode() is the SQLSTATE string
+                    $code = (int)($e->errorInfo[1] ?? 0);
+                    if (in_array($code, [1050, 1060, 1061, 1062, 1022, 1826], true)) {
+                        // Table/column/key exists or duplicate entry — data already present, safe to skip
                         $skipCnt++;
                     } else {
                         $warnCnt++;
