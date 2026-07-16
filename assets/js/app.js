@@ -1,0 +1,193 @@
+'use strict';
+
+// ── Toast ────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, type = 'ok') {
+    const el = document.getElementById('toast');
+    if (!el) return;
+    el.textContent = msg;
+    el.className = 'toast' + (type === 'error' ? ' toast-error' : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.className = 'toast hidden'; }, 3000);
+}
+
+// ── API helpers ────────────────────────────────────────────
+async function apiPost(data) {
+    const fd = new FormData();
+    fd.append('csrf_token', CSRF_TOKEN);
+    Object.entries(data).forEach(([k, v]) => fd.append(k, v));
+    const res = await fetch(APP_URL + '/api.php', { method: 'POST', body: fd });
+    return res.json();
+}
+
+// ── Theme applied on load ─────────────────────────────────
+(function () {
+    const theme = document.documentElement.dataset.theme;
+    if (theme === 'system') {
+        // handled by CSS media query — no JS needed
+    }
+})();
+
+// ── Tree section collapse ─────────────────────────────────
+document.querySelectorAll('.tree-sec-header').forEach(hdr => {
+    const body = document.getElementById('secBody' + hdr.dataset.sec);
+    if (!body) return;
+    hdr.addEventListener('click', () => {
+        const collapsed = body.style.display === 'none';
+        body.style.display = collapsed ? '' : 'none';
+        hdr.classList.toggle('collapsed', !collapsed);
+    });
+});
+
+// ── Tree search ───────────────────────────────────────────
+const treeSearch = document.getElementById('treeSearch');
+if (treeSearch) {
+    treeSearch.addEventListener('input', function () {
+        const q = this.value.toLowerCase().trim();
+        document.querySelectorAll('.tree-ind').forEach(el => {
+            const code  = (el.dataset.code  || '').toLowerCase();
+            const title = (el.dataset.title || '').toLowerCase();
+            const show  = !q || code.includes(q) || title.includes(q);
+            el.style.display = show ? '' : 'none';
+        });
+        // Show/hide sub-headers if all inds hidden
+        document.querySelectorAll('.tree-subs').forEach(subs => {
+            const visible = [...subs.querySelectorAll('.tree-ind')].some(i => i.style.display !== 'none');
+            subs.style.display = visible || !q ? '' : 'none';
+        });
+    });
+}
+
+// ── Load indicator detail ─────────────────────────────────
+async function loadIndicator(id) {
+    // Update active class
+    document.querySelectorAll('.tree-ind').forEach(el => {
+        el.classList.toggle('active', parseInt(el.dataset.id) === id);
+    });
+    window.selectedIndicatorId = id;
+
+    const panel = document.getElementById('indDetail');
+    if (!panel) return;
+
+    panel.innerHTML = '<div class="loading-spinner">กำลังโหลด…</div>';
+
+    const url = APP_URL + '/api.php?action=indicator_detail&id=' + id +
+                '&school=' + SCHOOL_ID + '&year=' + encodeURIComponent(YEAR_CODE);
+    try {
+        const res  = await fetch(url, { headers: { Accept: 'application/json' } });
+        const json = await res.json();
+        if (json.ok) {
+            panel.innerHTML = json.data.html;
+        } else {
+            panel.innerHTML = '<div class="detail-empty"><div class="detail-empty-text">เกิดข้อผิดพลาด</div></div>';
+        }
+    } catch (e) {
+        panel.innerHTML = '<div class="detail-empty"><div class="detail-empty-text">ไม่สามารถโหลดข้อมูลได้</div></div>';
+    }
+}
+
+// Auto-load if indicator pre-selected
+if (window.selectedIndicatorId) {
+    loadIndicator(window.selectedIndicatorId);
+}
+
+// ── Update Status ─────────────────────────────────────────
+function updateStatus(indId, status) {
+    apiPost({ action: 'update_status', indicator_id: indId, status }).then(r => {
+        if (r.ok) {
+            showToast('บันทึกสถานะเรียบร้อย');
+            // Reflect in tree
+            const treeEl = document.querySelector('.tree-ind[data-id="' + indId + '"]');
+            if (treeEl) {
+                treeEl.className = treeEl.className.replace(/status-\w+/, 'status-' + status);
+                const chip = treeEl.querySelector('.chip');
+                if (chip) {
+                    chip.className = 'chip ' + { done:'chip-done', inprogress:'chip-prog', pending:'chip-pend' }[status];
+                    chip.textContent = { done:'เผยแพร่แล้ว', inprogress:'กำลังดำเนินการ', pending:'ยังไม่ดำเนินการ' }[status];
+                }
+                // Update status buttons in detail panel
+                document.querySelectorAll('.status-btn').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.status === status);
+                });
+            }
+        } else { showToast(r.error, 'error'); }
+    });
+}
+
+// ── Evidence Modal ────────────────────────────────────────
+function openEvModal(indId) {
+    const modal = document.getElementById('evModal');
+    if (!modal) return;
+    document.getElementById('evIndId').value = indId;
+    document.getElementById('evForm')?.reset();
+    modal.classList.remove('hidden');
+    toggleLinkType('url');
+}
+
+function closeEvModal() {
+    document.getElementById('evModal')?.classList.add('hidden');
+}
+
+function toggleLinkType(type) {
+    const url  = document.getElementById('urlGroup');
+    const file = document.getElementById('fileGroup');
+    if (!url || !file) return;
+    url.classList.toggle('hidden',  type !== 'url');
+    file.classList.toggle('hidden', type !== 'file');
+}
+
+document.querySelectorAll('[name="link_type"]').forEach(radio => {
+    radio.addEventListener('change', () => toggleLinkType(radio.value));
+});
+
+// Evidence form submit
+const evForm = document.getElementById('evForm');
+if (evForm) {
+    evForm.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const btn = document.getElementById('evSubmitBtn');
+        btn.disabled = true;
+        const fd = new FormData(this);
+        fd.set('csrf_token', CSRF_TOKEN);
+        try {
+            const res  = await fetch(APP_URL + '/api.php', { method: 'POST', body: fd });
+            const json = await res.json();
+            if (json.ok) {
+                closeEvModal();
+                showToast('เพิ่มหลักฐานเรียบร้อย');
+                // Reload detail panel
+                if (window.selectedIndicatorId) loadIndicator(window.selectedIndicatorId);
+            } else { showToast(json.error, 'error'); }
+        } catch { showToast('เกิดข้อผิดพลาด', 'error'); }
+        btn.disabled = false;
+    });
+}
+
+// ── Delete Evidence ───────────────────────────────────────
+function deleteEvidence(evId, indId) {
+    if (!confirm('ลบหลักฐานนี้?')) return;
+    apiPost({ action: 'delete_evidence', evidence_id: evId }).then(r => {
+        if (r.ok) {
+            showToast('ลบหลักฐานแล้ว');
+            // Reload detail
+            if (indId) loadIndicator(indId);
+        } else { showToast(r.error, 'error'); }
+    });
+}
+
+// ── Close modal on backdrop click ────────────────────────
+document.querySelectorAll('.modal-backdrop').forEach(bd => {
+    bd.addEventListener('click', function (e) {
+        if (e.target === this) this.classList.add('hidden');
+    });
+});
+
+// Close on Escape
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('.modal-backdrop:not(.hidden)').forEach(m => m.classList.add('hidden'));
+    }
+});
+
+// hidden class for link-type toggle
+document.head.insertAdjacentHTML('beforeend', '<style>.hidden{display:none!important}</style>');

@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+@keyframes oitFade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:6px}
+::-webkit-scrollbar-thumb:hover{background:var(--text-faint)}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--maroon)!important}
+a{color:inherit}
+</style>
+</helmet>
+<div ref="{{ rootRef }}" style="--bg:#F4F1ED;--surface:#FFFFFF;--surface-2:#FAF7F3;--surface-3:#EFE9E3;--border:#E7E0D9;--border-strong:#D6CBC2;--text:#221C18;--text-muted:#6E645C;--text-faint:#9E938A;--maroon:#7A1E28;--maroon-deep:#5C141C;--maroon-bright:#93242F;--maroon-soft:#F3E5E3;--gold:#B8893B;--success:#2F7A57;--success-soft:#E5F0EA;--warning:#A8701A;--warning-soft:#F5ECD7;--danger:#B23A3A;--danger-soft:#F6E3E1;--shadow:rgba(74,30,24,0.10);--on-maroon:#FFFFFF;font-family:'Sarabun',-apple-system,sans-serif;min-height:100vh;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;font-size:15px;line-height:1.5">
+
+<sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+<div style="position:fixed;left:50%;bottom:30px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:11px 22px;border-radius:11px;font-size:14px;font-weight:600;z-index:2000;box-shadow:0 10px 30px rgba(0,0,0,.25);animation:oitFade .2s ease">{{ toast }}</div>
+</sc-if>
+
+<!-- ============ LOGIN ============ -->
+<sc-if value="{{ isLogin }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;min-height:100vh">
+  <div style="flex:0 0 42%;max-width:520px;background:linear-gradient(160deg,var(--maroon-deep),var(--maroon) 70%,#3d0d13);color:#fff;padding:48px 46px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden">
+    <div style="position:absolute;width:420px;height:420px;border-radius:50%;border:1px solid rgba(255,255,255,.08);right:-160px;top:-120px"></div>
+    <div style="position:absolute;width:300px;height:300px;border-radius:50%;border:1px solid rgba(255,255,255,.06);right:-60px;top:-40px"></div>
+    <div style="display:flex;align-items:center;gap:14px;position:relative">
+      <div style="width:58px;height:58px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;flex:none;box-shadow:0 4px 14px rgba(0,0,0,.2)"><img src="assets/ovec-logo.jpg" style="width:100%;height:100%;object-fit:contain"></div>
+      <div style="font-size:13px;line-height:1.35;opacity:.92">สำนักงานคณะกรรมการ<br>การอาชีวศึกษา</div>
+    </div>
+    <div style="position:relative">
+      <div style="font-size:13px;letter-spacing:3px;opacity:.7;font-weight:600">OIT · OPEN DATA INTEGRITY</div>
+      <h1 style="font-size:34px;font-weight:800;line-height:1.2;margin:14px 0 16px">ระบบเปิดเผย<br>ข้อมูลสาธารณะ</h1>
+      <p style="font-size:15px;opacity:.85;line-height:1.6;margin:0 0 26px;max-width:340px">แพลตฟอร์มกลางสำหรับสถานศึกษาอาชีวศึกษา จัดเก็บหลักฐานตัวชี้วัด OIT และเผยแพร่ต่อสาธารณะ เพื่อการประเมินคุณธรรมและความโปร่งใส (ITA)</p>
+      <div style="display:flex;flex-direction:column;gap:11px;font-size:14px;opacity:.9">
+        <div style="display:flex;align-items:center;gap:10px"><span style="width:7px;height:7px;border-radius:50%;background:var(--gold)"></span>แนบลิงก์ ไฟล์ รูปภาพ และข้อความเป็นหลักฐาน</div>
+        <div style="display:flex;align-items:center;gap:10px"><span style="width:7px;height:7px;border-radius:50%;background:var(--gold)"></span>รองรับการเปลี่ยนเกณฑ์ในแต่ละปีงบประมาณ</div>
+        <div style="display:flex;align-items:center;gap:10px"><span style="width:7px;height:7px;border-radius:50%;background:var(--gold)"></span>เชื่อมโยงหน้าแสดงผลกับเว็บไซต์สถานศึกษา</div>
+      </div>
+    </div>
+    <div style="position:relative;font-size:12px;opacity:.6">© 2569 สำนักงานคณะกรรมการการอาชีวศึกษา กระทรวงศึกษาธิการ</div>
+  </div>
+  <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:40px">
+    <div style="width:100%;max-width:392px">
+      <div style="font-size:13px;color:var(--text-faint);font-weight:600;letter-spacing:.5px">{{ systemName }}</div>
+      <h2 style="font-size:27px;font-weight:800;margin:6px 0 4px;color:var(--text)">เข้าสู่ระบบ</h2>
+      <p style="margin:0 0 26px;color:var(--text-muted);font-size:14px">สำหรับเจ้าหน้าที่และผู้ดูแลระบบของสถานศึกษา</p>
+      <label style="display:block;font-size:13.5px;font-weight:600;margin-bottom:7px">เลขประจำตัวประชาชน (ชื่อผู้ใช้)</label>
+      <input value="{{ liCid }}" onInput="{{ onLiCid }}" inputmode="numeric" maxlength="13" placeholder="กรอกเลข 13 หลัก" style="width:100%;padding:12px 14px;border:1px solid var(--border-strong);border-radius:10px;font-family:inherit;font-size:15px;background:var(--surface);color:var(--text);margin-bottom:16px">
+      <label style="display:block;font-size:13.5px;font-weight:600;margin-bottom:7px">รหัสผ่าน</label>
+      <input value="{{ liPw }}" onInput="{{ onLiPw }}" type="password" placeholder="รหัสผ่าน" style="width:100%;padding:12px 14px;border:1px solid var(--border-strong);border-radius:10px;font-family:inherit;font-size:15px;background:var(--surface);color:var(--text)">
+      <sc-if value="{{ loginError }}" hint-placeholder-val="{{ false }}"><div style="color:var(--danger);font-size:13px;margin-top:9px">{{ loginError }}</div></sc-if>
+      <button onClick="{{ doLogin }}" style="width:100%;margin-top:20px;padding:13px;border:none;border-radius:10px;background:var(--maroon);color:var(--on-maroon);font-family:inherit;font-size:15.5px;font-weight:700;cursor:pointer">เข้าสู่ระบบ</button>
+      <div style="display:flex;align-items:center;gap:12px;margin:24px 0 16px;color:var(--text-faint);font-size:12.5px"><div style="flex:1;height:1px;background:var(--border)"></div>เข้าชมแบบสาธิตตามบทบาท<div style="flex:1;height:1px;background:var(--border)"></div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+        <button onClick="{{ demoUser }}" style="padding:10px;border:1px solid var(--border-strong);border-radius:9px;background:var(--surface);color:var(--text);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">ผู้กรอกข้อมูล</button>
+        <button onClick="{{ demoSchoolAdmin }}" style="padding:10px;border:1px solid var(--border-strong);border-radius:9px;background:var(--surface);color:var(--text);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">ผู้ดูแลสถานศึกษา</button>
+        <button onClick="{{ demoCentral }}" style="padding:10px;border:1px solid var(--border-strong);border-radius:9px;background:var(--surface);color:var(--text);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">ผู้ดูแลส่วนกลาง</button>
+        <button onClick="{{ openPublic }}" style="padding:10px;border:1px solid var(--border-strong);border-radius:9px;background:var(--surface);color:var(--text);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">มุมมองสาธารณะ</button>
+      </div>
+      <div style="margin-top:22px;padding:13px 15px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;font-size:12.5px;color:var(--text-muted);line-height:1.55">ชื่อผู้ใช้คือ <b style="color:var(--text)">เลขประจำตัวประชาชน</b> · รหัสผ่านเริ่มต้นระบบจะสุ่มให้โดยอัตโนมัติ และต้องเปลี่ยนเมื่อเข้าใช้งานครั้งแรก</div>
+      <div style="text-align:center;margin-top:18px;font-size:13.5px;color:var(--text-muted)">สถานศึกษายังไม่มีบัญชี? <span onClick="{{ openRegister }}" style="color:var(--maroon);font-weight:700;cursor:pointer">สมัครใช้งานระบบ</span></div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<!-- ============ REGISTER ============ -->
+<sc-if value="{{ isRegister }}" hint-placeholder-val="{{ false }}">
+<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 20px">
+  <div style="width:100%;max-width:560px;background:var(--surface);border:1px solid var(--border);border-radius:18px;box-shadow:0 12px 40px var(--shadow);padding:38px 40px">
+    <div style="display:flex;align-items:center;gap:13px;margin-bottom:8px"><div style="width:44px;height:44px;border-radius:50%;overflow:hidden;flex:none"><img src="assets/ovec-logo.jpg" style="width:100%;height:100%;object-fit:contain"></div><div><div style="font-size:12.5px;color:var(--text-faint);font-weight:600">สมัครใช้งานระบบ OIT</div><h2 style="font-size:22px;font-weight:800;margin:2px 0">ลงทะเบียนสถานศึกษา</h2></div></div>
+    <sc-if value="{{ regNotDone }}" hint-placeholder-val="{{ true }}">
+    <p style="color:var(--text-muted);font-size:14px;margin:6px 0 22px">กรอกข้อมูลเพื่อสมัครใช้งาน เมื่อผู้ดูแลส่วนกลางอนุมัติแล้ว บัญชีผู้ดูแลระบบสถานศึกษาจะถูกสร้างให้โดยอัตโนมัติ</p>
+    <div style="display:flex;flex-direction:column;gap:15px">
+      <div><label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px">ชื่อสถานศึกษา</label><input value="{{ regSchool }}" onInput="{{ onRegSchool }}" placeholder="เช่น วิทยาลัยเทคนิค..." style="width:100%;padding:11px 13px;border:1px solid var(--border-strong);border-radius:9px;font-family:inherit;font-size:14.5px;background:var(--surface);color:var(--text)"></div>
+      <div><label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px">จังหวัด</label><input value="{{ regProvince }}" onInput="{{ onRegProvince }}" placeholder="จังหวัด" style="width:100%;padding:11px 13px;border:1px solid var(--border-strong);border-radius:9px;font-family:inherit;font-size:14.5px;background:var(--surface);color:var(--text)"></div>
+      <div><label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px">ชื่อ-นามสกุล ผู้ดูแลระบบสถานศึกษา</label><input value="{{ regAdmin }}" onInput="{{ onRegAdmin }}" placeholder="ชื่อ-นามสกุล" style="width:100%;padding:11px 13px;border:1px solid var(--border-strong);border-radius:9px;font-family:inherit;font-size:14.5px;background:var(--surface);color:var(--text)"></div>
+      <div style="display:flex;gap:13px">
+        <div style="flex:1"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px">เลขประจำตัวประชาชน</label><input value="{{ regCid }}" onInput="{{ onRegCid }}" inputmode="numeric" maxlength="13" placeholder="13 หลัก" style="width:100%;padding:11px 13px;border:1px solid var(--border-strong);border-radius:9px;font-family:inherit;font-size:14.5px;background:var(--surface);color:var(--text)"></div>
+        <div style="flex:1"><label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px">อีเมล</label><input value="{{ regEmail }}" onInput="{{ onRegEmail }}" placeholder="อีเมลติดต่อ" style="width:100%;padding:11px 13px;border:1px solid var(--border-strong);border-radius:9px;font-family:inherit;font-size:14.5px;background:var(--surface);color:var(--text)"></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:11px;margin-top:24px">
+      <button onClick="{{ backToLogin }}" style="padding:12px 20px;border:1px solid var(--border-strong);border-radius:10px;background:var(--surface);color:var(--text);font-family:inherit;font-size:14.5px;font-weight:600;cursor:pointer">ย้อนกลับ</button>
+      <button onClick="{{ doRegister }}" style="flex:1;padding:12px;border:none;border-radius:10px;background:var(--maroon);color:var(--on-maroon);font-family:inherit;font-size:14.5px;font-weight:700;cursor:pointer">ส่งคำขอสมัครใช้งาน</button>
+    </div>
+    </sc-if>
+    <sc-if value="{{ regDoneFlag }}" hint-placeholder-val="{{ false }}">
+    <div style="text-align:center;padding:14px 0 6px">
+      <div style="width:62px;height:62px;border-radius:50%;background:var(--success-soft);color:var(--success);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:30px">✓</div>
+      <h3 style="font-size:20px;font-weight:800;margin:0 0 6px">ส่งคำขอเรียบร้อยแล้ว</h3>
+      <p style="color:var(--text-muted);font-size:14px;margin:0 0 20px;line-height:1.6">คำขอของ <b style="color:var(--text)">{{ regDoneSchool }}</b> อยู่ระหว่างรอผู้ดูแลส่วนกลางอนุมัติ<br>นี่คือข้อมูลบัญชีผู้ดูแลระบบสถานศึกษาเบื้องต้น</p>
+      <div style="background:var(--surface-2);border:1px dashed var(--maroon);border-radius:12px;padding:18px;text-align:left;max-width:320px;margin:0 auto">
+        <div style="font-size:12px;color:var(--text-muted)">ชื่อผู้ใช้ (เลขประจำตัวประชาชน)</div>
+        <div style="font-size:16px;font-weight:700;font-family:monospace;margin:2px 0 12px">{{ regDoneCid }}</div>
+        <div style="font-size:12px;color:var(--text-muted)">รหัสผ่านเริ่มต้น (สุ่มอัตโนมัติ)</div>
+        <div style="font-size:18px;font-weight:700;font-family:monospace;color:var(--maroon)">{{ regDonePw }}</div>
+      </div>
+      <button onClick="{{ backToLogin }}" style="margin-top:22px;padding:11px 26px;border:none;border-radius:10px;background:var(--maroon);color:var(--on-maroon);font-family:inherit;font-size:14.5px;font-weight:700;cursor:pointer">กลับสู่หน้าเข้าสู่ระบบ</button>
+    </div>
+    </sc-if>
+  </div>
+</div>
+</sc-if>
+
+<!-- ============ FIRST LOGIN ============ -->
+<sc-if value="{{ isFirstLogin }}" hint-placeholder-val="{{ false }}">
+<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 20px">
+  <div style="width:100%;max-width:430px;background:var(--surface);border:1px solid var(--border);border-radius:18px;box-shadow:0 12px 40px var(--shadow);padding:38px 38px">
+    <div style="width:52px;height:52px;border-radius:14px;background:var(--maroon-soft);color:var(--maroon);display:flex;align-items:center;justify-content:center;margin-bottom:16px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
+    <h2 style="font-size:22px;font-weight:800;margin:0 0 6px">ตั้งรหัสผ่านใหม่</h2>
+    <p style="color:var(--text-muted);font-size:14px;margin:0 0 24px;line-height:1.6">เพื่อความปลอดภัย กรุณาเปลี่ยนรหัสผ่านที่ระบบสุ่มให้ ก่อนเริ่มใช้งานครั้งแรก</p>
+    <label style="display:block;font-size:13px;font-weight:600;margin-bottom:7px">รหัสผ่านใหม่</label>
+    <input value="{{ np1 }}" onInput="{{ onNp1 }}" type="password" placeholder="อย่างน้อย 8 ตัวอักษร" style="width:100%;padding:12px 14px;border:1px solid var(--border-strong);border-radius:10px;font-family:inherit;font-size:15px;background:var(--surface);color:var(--text);margin-bottom:15px">
+    <label style="display:block;font-size:13px;font-weight:600;margin-bottom:7px">ยืนยันรหัสผ่านใหม่</label>
+    <input value="{{ np2 }}" onInput="{{ onNp2 }}" type="password" placeholder="กรอกอีกครั้ง" style="width:100%;padding:12px 14px;border:1px solid var(--border-strong);border-radius:10px;font-family:inherit;font-size:15px;background:var(--surface);color:var(--text)">
+    <sc-if value="{{ pwError }}" hint-placeholder-val="{{ false }}"><div style="color:var(--danger);font-size:13px;margin-top:10px">{{ pwError }}</div></sc-if>
+    <button onClick="{{ doSetPassword }}" style="width:100%;margin-top:22px;padding:13px;border:none;border-radius:10px;background:var(--maroon);color:var(--on-maroon);font-family:inherit;font-size:15px;font-weight:700;cursor:pointer">บันทึกและเข้าสู่ระบบ</button>
+  </div>
+</div>
+</sc-if>
+
+<!-- ============ APP SHELL ============ -->
+<sc-if value="{{ isApp }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;min-height:100vh">
+  <!-- sidebar -->
+  <aside style="flex:0 0 264px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:sticky;top:0;height:100vh">
+    <div style="padding:20px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px">
+      <div style="width:42px;height:42px;border-radius:11px;overflow:hidden;flex:none;border:1px solid var(--border)"><img ref="{{ logoRef }}" alt="ตราสถานศึกษา" style="width:100%;height:100%;object-fit:contain;background:#fff"></div>
+      <div style="min-width:0"><div style="font-size:14.5px;font-weight:700;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ school.name }}</div><div style="font-size:11.5px;color:var(--text-faint)">ระบบ OIT · อาชีวศึกษา</div></div>
+    </div>
+    <nav style="flex:1;padding:14px 12px;overflow-y:auto">
+      <div style="font-size:11px;font-weight:700;color:var(--text-faint);letter-spacing:1px;padding:6px 10px 8px">เมนู</div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <sc-if value="{{ navUser }}" hint-placeholder-val="{{ true }}">
+        <button onClick="{{ goDashboard }}" style="{{ sDash }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>ภาพรวมความคืบหน้า</button>
+        <button onClick="{{ goEvidence }}" style="{{ sEvi }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h11l5 5v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M14 4v5h5M8 13h8M8 17h5"/></svg>กรอกหลักฐานตัวชี้วัด</button>
+        </sc-if>
+        <sc-if value="{{ navSchoolAdmin }}" hint-placeholder-val="{{ false }}">
+        <button onClick="{{ goUsers }}" style="{{ sUsr }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 11.2a3 3 0 0 0 0-5.8M20 19c0-2-1.2-3.6-3-4.4"/></svg>จัดการผู้ใช้</button>
+        </sc-if>
+        <sc-if value="{{ navCentral }}" hint-placeholder-val="{{ false }}">
+        <button onClick="{{ goCriteria }}" style="{{ sCri }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2" fill="var(--surface)"/><circle cx="15" cy="12" r="2" fill="var(--surface)"/><circle cx="7" cy="18" r="2" fill="var(--surface)"/></svg>เกณฑ์ & ปีงบประมาณ</button>
+        <button onClick="{{ goSchools }}" style="{{ sSch }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-5h6v5M9 10h.01M15 10h.01M9 13h.01M15 13h.01"/></svg>สถานศึกษาที่สมัคร</button>
+        </sc-if>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--text-faint);letter-spacing:1px;padding:18px 10px 8px">สาธารณะ</div>
+      <button onClick="{{ openPublic }}" style="display:flex;align-items:center;gap:11px;width:100%;padding:10px 13px;border:none;border-radius:10px;background:transparent;color:var(--text-muted);font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;text-align:left" style-hover="background:var(--surface-3)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>หน้าแสดงผลสาธารณะ</button>
+    </nav>
+    <sc-if value="{{ showDemo }}" hint-placeholder-val="{{ false }}">
+    <div style="padding:13px 14px;border-top:1px solid var(--border)">
+      <div style="font-size:10.5px;font-weight:700;color:var(--text-faint);letter-spacing:1px;margin-bottom:8px">สลับบทบาท (สาธิต)</div>
+      <div style="display:flex;gap:6px">
+        <button onClick="{{ demoUser }}" style="{{ rUser }}">ผู้กรอก</button>
+        <button onClick="{{ demoSchoolAdmin }}" style="{{ rSadmin }}">ผู้ดูแล</button>
+        <button onClick="{{ demoCentral }}" style="{{ rCadmin }}">ส่วนกลาง</button>
+      </div>
+    </div>
+    </sc-if>
+    <div style="padding:13px 16px;border-top:1px solid var(--border);display:flex;align-items:center;gap:11px">
+      <div style="width:36px;height:36px;border-radius:50%;background:var(--maroon);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;flex:none">{{ currentUserInitial }}</div>
+      <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ currentUserName }}</div><div style="font-size:11.5px;color:var(--text-faint)">{{ roleLabel }}</div></div>
+      <button onClick="{{ logout }}" title="ออกจากระบบ" style="border:none;background:transparent;color:var(--text-faint);cursor:pointer;padding:6px;border-radius:8px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg></button>
+    </div>
+  </aside>
+
+  <!-- main -->
+  <main style="flex:1;min-width:0;display:flex;flex-direction:column">
+    <header style="height:62px;border-bottom:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:space-between;padding:0 26px;position:sticky;top:0;z-index:10">
+      <div style="display:flex;align-items:center;gap:13px">
+        <h1 style="font-size:18px;font-weight:800;margin:0">{{ pageTitle }}</h1>
+        <span style="padding:4px 11px;border-radius:999px;background:var(--maroon-soft);color:var(--maroon);font-size:12.5px;font-weight:700">{{ activeYearLabel }}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;background:var(--surface-3);padding:4px;border-radius:10px">
+        <button onClick="{{ setLight }}" style="{{ thLight }}">สว่าง</button>
+        <button onClick="{{ setDark }}" style="{{ thDark }}">มืด</button>
+        <button onClick="{{ setSystem }}" style="{{ thSystem }}">ระบบ</button>
+      </div>
+    </header>
+    <div style="flex:1;overflow-y:auto;padding:26px">
+
+      <!-- DASHBOARD -->
+      <sc-if value="{{ vDashboard }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width:1080px;margin:0 auto">
+        <div style="display:grid;grid-template-columns:300px 1fr;gap:18px;margin-bottom:18px">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;display:flex;flex-direction:column;align-items:center;box-shadow:0 1px 3px var(--shadow)">
+            <div style="position:relative;width:140px;height:140px;border-radius:50%;background:{{ ringStyle }}">
+              <div style="position:absolute;inset:13px;border-radius:50%;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center">
+                <div style="font-size:34px;font-weight:800;color:var(--maroon);line-height:1">{{ pctLabel }}</div>
+                <div style="font-size:12.5px;color:var(--text-muted);margin-top:2px">เผยแพร่แล้ว</div>
+              </div>
+            </div>
+            <div style="margin-top:18px;text-align:center"><div style="font-size:14px;font-weight:700">{{ doneCount }} จาก {{ totalCount }} ตัวชี้วัด</div><div style="font-size:12.5px;color:var(--text-muted);margin-top:2px">อัปเดตล่าสุด {{ lastUpdated }}</div></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 20px;box-shadow:0 1px 3px var(--shadow)"><div style="font-size:13px;color:var(--text-muted)">เผยแพร่แล้ว</div><div style="font-size:30px;font-weight:800;color:var(--success);margin-top:4px">{{ doneCount }}</div></div>
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 20px;box-shadow:0 1px 3px var(--shadow)"><div style="font-size:13px;color:var(--text-muted)">กำลังดำเนินการ</div><div style="font-size:30px;font-weight:800;color:var(--warning);margin-top:4px">{{ progCount }}</div></div>
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 20px;box-shadow:0 1px 3px var(--shadow)"><div style="font-size:13px;color:var(--text-muted)">ยังไม่ดำเนินการ</div><div style="font-size:30px;font-weight:800;color:var(--text-faint);margin-top:4px">{{ pendCount }}</div></div>
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 20px;box-shadow:0 1px 3px var(--shadow)"><div style="font-size:13px;color:var(--text-muted)">หลักฐานทั้งหมด</div><div style="font-size:30px;font-weight:800;color:var(--maroon);margin-top:4px">{{ evCount }}</div></div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:22px;box-shadow:0 1px 3px var(--shadow)">
+            <h3 style="font-size:15.5px;font-weight:700;margin:0 0 16px">ความคืบหน้าตามหมวด</h3>
+            <div style="display:flex;flex-direction:column;gap:16px">
+              <sc-for list="{{ sectionProg }}" as="sp" hint-placeholder-count="2">
+                <div>
+                  <div style="display:flex;justify-content:space-between;font-size:13.5px;margin-bottom:6px"><span style="font-weight:600">{{ sp.title }}</span><span style="color:var(--text-muted)">{{ sp.doneLabel }} · {{ sp.pctLabel }}</span></div>
+                  <div style="height:8px;background:var(--surface-3);border-radius:999px;overflow:hidden"><div style="{{ sp.barStyle }}"></div></div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:22px;box-shadow:0 1px 3px var(--shadow)">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><h3 style="font-size:15.5px;font-weight:700;margin:0">ตัวชี้วัดที่ต้องดำเนินการ</h3><span onClick="{{ goEvidence }}" style="font-size:13px;color:var(--maroon);font-weight:700;cursor:pointer">ดูทั้งหมด →</span></div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <sc-for list="{{ incomplete }}" as="ic" hint-placeholder-count="5">
+                <button onClick="{{ ic.onGo }}" style="display:flex;align-items:center;gap:12px;width:100%;padding:10px 11px;border:none;border-radius:9px;background:transparent;cursor:pointer;text-align:left;font-family:inherit" style-hover="background:var(--surface-3)">
+                  <span style="font-size:12px;font-weight:800;color:var(--maroon);width:34px;flex:none">{{ ic.code }}</span>
+                  <span style="flex:1;font-size:13.5px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ ic.title }}</span>
+                  <span style="{{ ic.chip }}">{{ ic.statusLabel }}</span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- EVIDENCE -->
+      <sc-if value="{{ vEvidence }}" hint-placeholder-val="{{ false }}">
+      <div style="display:grid;grid-template-columns:380px 1fr;gap:20px;max-width:1180px;margin:0 auto;align-items:start">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:0 1px 3px var(--shadow);overflow:hidden">
+          <div style="padding:16px 18px;border-bottom:1px solid var(--border)"><div style="font-size:14.5px;font-weight:700">รายการตัวชี้วัด OIT</div><div style="font-size:12px;color:var(--text-muted);margin-top:2px">เลือกตัวชี้วัดเพื่อจัดการหลักฐาน</div></div>
+          <div style="max-height:calc(100vh - 200px);overflow-y:auto;padding:8px">
+            <sc-for list="{{ tree }}" as="sec" hint-placeholder-count="2">
+              <div style="padding:12px 10px 5px;font-size:11.5px;font-weight:800;color:var(--maroon);letter-spacing:.4px">{{ sec.title }}</div>
+              <sc-for list="{{ sec.subs }}" as="sub" hint-placeholder-count="2">
+                <div style="padding:8px 10px 4px;font-size:12.5px;font-weight:700;color:var(--text-muted)">{{ sub.title }}</div>
+                <sc-for list="{{ sub.items }}" as="ind" hint-placeholder-count="3">
+                  <button onClick="{{ ind.onSelect }}" style="{{ ind.rowStyle }}">
+                    <span style="{{ ind.dotStyle }}"></span>
+                    <span style="font-size:12px;font-weight:800;width:32px;flex:none;text-align:left">{{ ind.code }}</span>
+                    <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ ind.title }}</span>
+                    <span style="font-size:11px;color:var(--text-faint);flex:none">{{ ind.evLabel }}</span>
+                  </button>
+                </sc-for>
+              </sc-for>
+            </sc-for>
+          </div>
+        </div>
+        <div>
+          <sc-if value="{{ hasSelection }}" hint-placeholder-val="{{ false }}">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:0 1px 3px var(--shadow);padding:26px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:6px">
+              <div><div style="font-size:12.5px;color:var(--text-faint);font-weight:700">{{ selSubTitle }}</div><h2 style="font-size:21px;font-weight:800;margin:3px 0"><span style="color:var(--maroon)">{{ sel.code }}</span> · {{ sel.title }}</h2></div>
+            </div>
+            <p style="color:var(--text-muted);font-size:14px;line-height:1.6;margin:0 0 20px;padding:13px 16px;background:var(--surface-2);border-radius:11px;border-left:3px solid var(--maroon)"><b style="color:var(--text)">เกณฑ์: </b>{{ sel.criteria }}</p>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:22px">
+              <span style="font-size:13px;font-weight:700;color:var(--text-muted)">สถานะการเผยแพร่:</span>
+              <button onClick="{{ setPending }}" style="{{ stPending }}">ยังไม่ดำเนินการ</button>
+              <button onClick="{{ setProg }}" style="{{ stProg }}">กำลังดำเนินการ</button>
+              <button onClick="{{ setDone }}" style="{{ stDone }}">เผยแพร่แล้ว</button>
+            </div>
+            <div style="font-size:14.5px;font-weight:700;margin-bottom:11px">หลักฐาน ({{ sel.count }})</div>
+            <sc-if value="{{ sel.hasEv }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
+              <sc-for list="{{ sel.evidences }}" as="ev" hint-placeholder-count="2">
+                <div style="display:flex;align-items:center;gap:13px;padding:13px 15px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2)">
+                  <sc-if value="{{ ev.hasImg }}" hint-placeholder-val="{{ false }}"><img ref="{{ ev.imgRef }}" style="width:46px;height:46px;border-radius:8px;object-fit:cover;flex:none;border:1px solid var(--border)"></sc-if>
+                  <sc-if value="{{ ev.noImg }}" hint-placeholder-val="{{ true }}"><div style="width:46px;height:46px;border-radius:8px;background:var(--maroon-soft);color:var(--maroon);display:flex;align-items:center;justify-content:center;flex:none;font-size:11px;font-weight:700">{{ ev.typeLabel }}</div></sc-if>
+                  <div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ ev.title }}</div><div style="font-size:12px;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ ev.sub }}</div></div>
+                  <span style="font-size:11px;font-weight:700;color:var(--text-faint);padding:3px 9px;background:var(--surface-3);border-radius:999px;flex:none">{{ ev.typeLabel }}</span>
+                  <sc-if value="{{ ev.hasLink }}" hint-placeholder-val="{{ false }}"><a href="{{ ev.href }}" target="_blank" style="color:var(--maroon);flex:none;padding:6px;border-radius:7px" title="เปิด"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5h10v10M19 5L7 17M5 9v10h10"/></svg></a></sc-if>
+                  <button onClick="{{ ev.onRemove }}" style="border:none;background:transparent;color:var(--text-faint);cursor:pointer;padding:6px;flex:none" title="ลบ"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button>
+                </div>
+              </sc-for>
+            </div>
+            </sc-if>
+            <div style="border:1px dashed var(--border-strong);border-radius:13px;padding:18px;background:var(--surface-2)">
+              <div style="font-size:13.5px;font-weight:700;margin-bottom:12px">เพิ่มหลักฐานใหม่</div>
+              <div style="display:flex;gap:7px;margin-bottom:15px">
+                <button onClick="{{ tabLink }}" style="{{ tLink }}">ลิงก์ URL</button>
+                <button onClick="{{ tabFile }}" style="{{ tFile }}">ไฟล์</button>
+                <button onClick="{{ tabImage }}" style="{{ tImage }}">รูปภาพ</button>
+                <button onClick="{{ tabText }}" style="{{ tText }}">ข้อความ</button>
+              </div>
+              <input value="{{ evTitle }}" onInput="{{ onEvTitle }}" placeholder="ชื่อ/คำอธิบายหลักฐาน (ไม่บังคับ)" style="width:100%;padding:10px 13px;border:1px solid var(--border-strong);border-radius:9px;font-family:inherit;font-size:14px;background:var(--surface);color:var(--text);margin-bottom:11px">
+              <sc-if value="{{ showUrl }}" hint-placeholder-val="{{ true }}"><input value="{{ evUrl }}" onInput="{{ onEvUrl }}" placeholder="วางลิงก์ URL เช่น https://drive.google.com/..." style="width:100%;padding:10px 13px;border:1px solid var(--border-strong);border-radius:9px;font-family:inherit;font-size:14px;background:var(--surface);color:var(--text)"></sc-if>
+              <sc-if value="{{ showText }}" hint-placeholder-val="{{ false }}"><textarea value="{{ evNote }}" onInput="{{ onEvNote }}" placeholder="พิมพ์ข้อความหรือคำอธิบายหลักฐาน..." rows="3" style="width:100%;padding:10px 13px;border:1px solid var(--border-strong);border-radius:9px;font-family:inherit;font-size:14px;background:var(--surface);color:var(--text);resize:vertical"></textarea></sc-if>
+              <sc-if value="{{ showFile }}" hint-placeholder-val="{{ false }}"><div><input type="file" onChange="{{ onPickFile }}" style="font-family:inherit;font-size:13px;color:var(--text-muted)"><sc-if value="{{ hasPickedFile }}" hint-placeholder-val="{{ false }}"><div style="font-size:13px;color:var(--success);margin-top:7px">เลือกแล้ว: {{ evFileName }}</div></sc-if></div></sc-if>
+              <sc-if value="{{ showImage }}" hint-placeholder-val="{{ false }}"><div><input type="file" accept="image/*" onChange="{{ onPickImage }}" style="font-family:inherit;font-size:13px;color:var(--text-muted)"><sc-if value="{{ hasPickedImg }}" hint-placeholder-val="{{ false }}"><img ref="{{ pickedImgRef }}" style="margin-top:10px;max-height:90px;border-radius:9px;border:1px solid var(--border)"></sc-if></div></sc-if>
+              <button onClick="{{ addEvidence }}" style="margin-top:14px;padding:10px 20px;border:none;border-radius:9px;background:var(--maroon);color:var(--on-maroon);font-family:inherit;font-size:14px;font-weight:700;cursor:pointer">+ เพิ่มหลักฐาน</button>
+            </div>
+          </div>
+          </sc-if>
+          <sc-if value="{{ noSelection }}" hint-placeholder-val="{{ true }}">
+          <div style="background:var(--surface);border:1px dashed var(--border-strong);border-radius:16px;padding:70px 30px;text-align:center;color:var(--text-faint)">
+            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:14px"><path d="M4 4h11l5 5v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M14 4v5h5"/></svg>
+            <div style="font-size:15px;font-weight:600;color:var(--text-muted)">เลือกตัวชี้วัดจากรายการด้านซ้าย</div>
+            <div style="font-size:13px;margin-top:5px">เพื่อแนบลิงก์ ไฟล์ รูปภาพ หรือข้อความเป็นหลักฐาน</div>
+          </div>
+          </sc-if>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- USERS -->
+      <sc-if value="{{ vUsers }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width:1000px;margin:0 auto;display:flex;flex-direction:column;gap:18px">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;box-shadow:0 1px 3px var(--shadow);display:grid;grid-template-columns:auto 1fr;gap:24px;align-items:center">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:11px">
+            <div style="width:84px;height:84px;border-radius:18px;border:1px solid var(--border);overflow:hidden;background:#fff;display:flex;align-items:center;justify-content:center"><img ref="{{ logoRef }}" alt="ตราสถานศึกษา" style="width:100%;height:100%;object-fit:contain"></div>
+            <label style="font-size:12.5px;color:var(--maroon);font-weight:700;cursor:pointer">เปลี่ยนตราสถานศึกษา<input type="file" accept="image/*" onChange="{{ onUploadEmblem }}" style="display:none"></label>
+            <sc-if value="{{ hasEmblem }}" hint-placeholder-val="{{ false }}"><span onClick="{{ removeEmblem }}" style="font-size:11.5px;color:var(--text-faint);cursor:pointer">ใช้โลโก้ สอศ. แทน</span></sc-if>
+          </div>
+          <div>
+            <div style="font-size:12.5px;color:var(--text-faint);font-weight:700">สถานศึกษา</div>
+            <h2 style="font-size:21px;font-weight:800;margin:3px 0 4px">{{ school.name }}</h2>
+            <div style="font-size:13.5px;color:var(--text-muted);margin-bottom:14px">จังหวัด{{ school.province }}</div>
+            <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:6px">ลิงก์แสดงผลสาธารณะ (สำหรับนำไปเชื่อมโยงกับเว็บไซต์สถานศึกษา)</div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <code style="flex:1;padding:9px 13px;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ publicLink }}</code>
+              <button onClick="{{ copyPublic }}" style="padding:9px 15px;border:1px solid var(--maroon);border-radius:9px;background:var(--maroon-soft);color:var(--maroon);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">คัดลอกลิงก์</button>
+              <button onClick="{{ copyEmbed }}" style="padding:9px 15px;border:1px solid var(--border-strong);border-radius:9px;background:var(--surface);color:var(--text);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">คัดลอกโค้ดฝัง</button>
+            </div>
+          </div>
+        </div>
+
+        <sc-if value="{{ newCredFlag }}" hint-placeholder-val="{{ false }}">
+        <div style="background:var(--maroon-soft);border:1px solid var(--maroon);border-radius:14px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px">
+          <div><div style="font-size:13px;font-weight:700;color:var(--maroon);margin-bottom:3px">สร้างบัญชี / รีเซ็ตรหัสผ่านสำเร็จ — โปรดแจ้งผู้ใช้</div><div style="font-size:13.5px">ชื่อผู้ใช้ <b style="font-family:monospace">{{ newCredCid }}</b> · รหัสผ่านเริ่มต้น <b style="font-family:monospace;color:var(--maroon)">{{ newCredPw }}</b></div></div>
+          <button onClick="{{ dismissCred }}" style="border:none;background:var(--surface);color:var(--text);padding:8px 14px;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">รับทราบ</button>
+        </div>
+        </sc-if>
+
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:0 1px 3px var(--shadow);overflow:hidden">
+          <div style="padding:18px 22px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center"><div><h3 style="font-size:16px;font-weight:800;margin:0">ผู้ใช้งานในสถานศึกษา</h3><div style="font-size:12.5px;color:var(--text-muted);margin-top:2px">{{ userCountLabel }}</div></div></div>
+          <div style="padding:18px 22px;border-bottom:1px solid var(--border);background:var(--surface-2)">
+            <div style="font-size:13px;font-weight:700;margin-bottom:11px">เพิ่มผู้ใช้ใหม่</div>
+            <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+              <div style="flex:2;min-width:180px"><label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:5px">ชื่อ-นามสกุล</label><input value="{{ auName }}" onInput="{{ onAuName }}" placeholder="ชื่อ-นามสกุล" style="width:100%;padding:9px 12px;border:1px solid var(--border-strong);border-radius:8px;font-family:inherit;font-size:13.5px;background:var(--surface);color:var(--text)"></div>
+              <div style="flex:2;min-width:160px"><label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:5px">เลขประจำตัวประชาชน</label><input value="{{ auCid }}" onInput="{{ onAuCid }}" inputmode="numeric" maxlength="13" placeholder="13 หลัก" style="width:100%;padding:9px 12px;border:1px solid var(--border-strong);border-radius:8px;font-family:inherit;font-size:13.5px;background:var(--surface);color:var(--text)"></div>
+              <div style="flex:1;min-width:130px"><label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:5px">บทบาท</label><select value="{{ auRole }}" onChange="{{ onAuRole }}" style="width:100%;padding:9px 12px;border:1px solid var(--border-strong);border-radius:8px;font-family:inherit;font-size:13.5px;background:var(--surface);color:var(--text)"><option value="user">ผู้กรอกข้อมูล</option><option value="schooladmin">ผู้ดูแลระบบสถานศึกษา</option></select></div>
+              <button onClick="{{ addUser }}" style="padding:10px 18px;border:none;border-radius:8px;background:var(--maroon);color:var(--on-maroon);font-family:inherit;font-size:13.5px;font-weight:700;cursor:pointer">+ เพิ่ม</button>
+            </div>
+            <sc-if value="{{ userError }}" hint-placeholder-val="{{ false }}"><div style="color:var(--danger);font-size:12.5px;margin-top:9px">{{ userError }}</div></sc-if>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:13.5px">
+            <thead><tr style="text-align:left;color:var(--text-muted);font-size:12px">
+              <th style="padding:11px 22px;font-weight:600">ชื่อ-นามสกุล</th><th style="padding:11px 12px;font-weight:600">ชื่อผู้ใช้ (เลขบัตร)</th><th style="padding:11px 12px;font-weight:600">บทบาท</th><th style="padding:11px 12px;font-weight:600">สถานะ</th><th style="padding:11px 12px;font-weight:600">เข้าใช้ล่าสุด</th><th style="padding:11px 22px;font-weight:600;text-align:right">จัดการ</th>
+            </tr></thead>
+            <tbody>
+              <sc-for list="{{ userList }}" as="u" hint-placeholder-count="3">
+                <tr style="border-top:1px solid var(--border)">
+                  <td style="padding:13px 22px"><div style="display:flex;align-items:center;gap:10px"><span style="width:32px;height:32px;border-radius:50%;background:var(--surface-3);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none">{{ u.initial }}</span><span style="font-weight:600">{{ u.name }}</span></div></td>
+                  <td style="padding:13px 12px;font-family:monospace;color:var(--text-muted)">{{ u.cid }}</td>
+                  <td style="padding:13px 12px"><span style="{{ u.roleChip }}">{{ u.roleLabel }}</span></td>
+                  <td style="padding:13px 12px"><span style="{{ u.statusChip }}">{{ u.statusLabel }}</span></td>
+                  <td style="padding:13px 12px;color:var(--text-muted)">{{ u.last }}</td>
+                  <td style="padding:13px 22px"><div style="display:flex;gap:6px;justify-content:flex-end">
+                    <button onClick="{{ u.onReset }}" style="padding:6px 11px;border:1px solid var(--border-strong);border-radius:7px;background:var(--surface);color:var(--text);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer">รีเซ็ตรหัส</button>
+                    <button onClick="{{ u.onToggle }}" style="padding:6px 11px;border:1px solid var(--border-strong);border-radius:7px;background:var(--surface);color:var(--text-muted);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer">{{ u.toggleLabel }}</button>
+                  </div></td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- CRITERIA (central) -->
+      <sc-if value="{{ vCriteria }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width:1180px;margin:0 auto">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:22px;box-shadow:0 1px 3px var(--shadow);margin-bottom:18px">
+          <h3 style="font-size:16px;font-weight:800;margin:0 0 4px">ปีงบประมาณ & เกณฑ์การประเมิน</h3>
+          <p style="font-size:13.5px;color:var(--text-muted);margin:0 0 16px">เกณฑ์ตัวชี้วัดแยกตามปีงบประมาณ — สร้างปีใหม่โดยคัดลอกโครงสร้างจากปีก่อนหน้าแล้วปรับแก้ได้</p>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px">
+            <sc-for list="{{ fiscalYears }}" as="yr" hint-placeholder-count="2">
+              <div style="{{ yr.cardStyle }}">
+                <div style="display:flex;align-items:center;gap:8px"><span style="font-size:14.5px;font-weight:800">{{ yr.label }}</span><sc-if value="{{ yr.active }}" hint-placeholder-val="{{ false }}"><span style="font-size:10.5px;font-weight:700;color:var(--success);background:var(--success-soft);padding:2px 8px;border-radius:999px">ใช้งานอยู่</span></sc-if></div>
+                <div style="font-size:12px;color:var(--text-muted);margin:5px 0 10px">{{ yr.countLabel }}</div>
+                <sc-if value="{{ yr.inactive }}" hint-placeholder-val="{{ true }}"><button onClick="{{ yr.onActivate }}" style="padding:6px 13px;border:1px solid var(--maroon);border-radius:8px;background:transparent;color:var(--maroon);font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer">เปิดใช้งานปีนี้</button></sc-if>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;padding-top:16px;border-top:1px solid var(--border)">
+            <div style="flex:1;min-width:200px"><label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:5px">ชื่อปีงบประมาณใหม่</label><input value="{{ nyLabel }}" onInput="{{ onNyLabel }}" placeholder="เช่น ปีงบประมาณ พ.ศ. 2569" style="width:100%;padding:9px 12px;border:1px solid var(--border-strong);border-radius:8px;font-family:inherit;font-size:13.5px;background:var(--surface);color:var(--text)"></div>
+            <div style="min-width:200px"><label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:5px">คัดลอกเกณฑ์จาก</label><select value="{{ nyClone }}" onChange="{{ onNyClone }}" style="width:100%;padding:9px 12px;border:1px solid var(--border-strong);border-radius:8px;font-family:inherit;font-size:13.5px;background:var(--surface);color:var(--text)"><sc-for list="{{ yearOptions }}" as="yo" hint-placeholder-count="2"><option value="{{ yo.id }}">{{ yo.label }}</option></sc-for></select></div>
+            <button onClick="{{ addYear }}" style="padding:10px 18px;border:none;border-radius:8px;background:var(--maroon);color:var(--on-maroon);font-family:inherit;font-size:13.5px;font-weight:700;cursor:pointer">+ สร้างปีงบประมาณ</button>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:380px 1fr;gap:20px;align-items:start">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:0 1px 3px var(--shadow);overflow:hidden">
+            <div style="padding:15px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center"><div style="font-size:14px;font-weight:700">โครงสร้างตัวชี้วัด · {{ activeYearLabel }}</div></div>
+            <div style="max-height:calc(100vh - 130px);overflow-y:auto;padding:8px">
+              <sc-for list="{{ tree }}" as="sec" hint-placeholder-count="2">
+                <div style="padding:12px 10px 5px;font-size:11.5px;font-weight:800;color:var(--maroon)">{{ sec.title }}</div>
+                <sc-for list="{{ sec.subs }}" as="sub" hint-placeholder-count="2">
+                  <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px 4px"><span style="font-size:12.5px;font-weight:700;color:var(--text-muted)">{{ sub.title }}</span><button onClick="{{ sub.onAdd }}" style="border:none;background:var(--surface-3);color:var(--maroon);border-radius:6px;width:22px;height:22px;font-size:16px;font-weight:700;cursor:pointer;line-height:1">+</button></div>
+                  <sc-for list="{{ sub.items }}" as="ind" hint-placeholder-count="3">
+                    <button onClick="{{ ind.onSelect }}" style="{{ ind.rowStyle }}"><span style="font-size:12px;font-weight:800;width:32px;flex:none;text-align:left">{{ ind.code }}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ ind.title }}</span></button>
+                  </sc-for>
+                </sc-for>
+              </sc-for>
+            </div>
+          </div>
+          <div>
+            <sc-if value="{{ hasSelection }}" hint-placeholder-val="{{ false }}">
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:0 1px 3px var(--shadow);padding:26px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px"><h2 style="font-size:19px;font-weight:800;margin:0"><span style="color:var(--maroon)">{{ sel.code }}</span> · แก้ไขตัวชี้วัด</h2><button onClick="{{ deleteIndicator }}" style="padding:7px 14px;border:1px solid var(--danger);border-radius:8px;background:var(--danger-soft);color:var(--danger);font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer">ลบตัวชี้วัด</button></div>
+              <label style="display:block;font-size:13px;font-weight:600;margin-bottom:7px">ชื่อตัวชี้วัด</label>
+              <input value="{{ edTitle }}" onInput="{{ onEdTitle }}" style="width:100%;padding:11px 14px;border:1px solid var(--border-strong);border-radius:10px;font-family:inherit;font-size:14.5px;background:var(--surface);color:var(--text);margin-bottom:16px">
+              <label style="display:block;font-size:13px;font-weight:600;margin-bottom:7px">เกณฑ์การประเมิน / รายละเอียด</label>
+              <textarea value="{{ edCriteria }}" onInput="{{ onEdCriteria }}" rows="4" style="width:100%;padding:11px 14px;border:1px solid var(--border-strong);border-radius:10px;font-family:inherit;font-size:14.5px;background:var(--surface);color:var(--text);resize:vertical"></textarea>
+              <button onClick="{{ saveIndicator }}" style="margin-top:18px;padding:11px 24px;border:none;border-radius:10px;background:var(--maroon);color:var(--on-maroon);font-family:inherit;font-size:14px;font-weight:700;cursor:pointer">บันทึกการแก้ไข</button>
+            </div>
+            </sc-if>
+            <sc-if value="{{ noSelection }}" hint-placeholder-val="{{ true }}">
+            <div style="background:var(--surface);border:1px dashed var(--border-strong);border-radius:16px;padding:70px 30px;text-align:center;color:var(--text-faint)"><div style="font-size:15px;font-weight:600;color:var(--text-muted)">เลือกตัวชี้วัดเพื่อแก้ไขเกณฑ์</div><div style="font-size:13px;margin-top:5px">หรือกดปุ่ม + เพื่อเพิ่มตัวชี้วัดใหม่ในแต่ละหมวด</div></div>
+            </sc-if>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- SCHOOLS (central) -->
+      <sc-if value="{{ vSchools }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width:1000px;margin:0 auto;display:flex;flex-direction:column;gap:18px">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 20px;box-shadow:0 1px 3px var(--shadow)"><div style="font-size:13px;color:var(--text-muted)">สถานศึกษาทั้งหมด</div><div style="font-size:30px;font-weight:800;color:var(--maroon);margin-top:4px">{{ regTotal }}</div></div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 20px;box-shadow:0 1px 3px var(--shadow)"><div style="font-size:13px;color:var(--text-muted)">อนุมัติแล้ว</div><div style="font-size:30px;font-weight:800;color:var(--success);margin-top:4px">{{ regApproved }}</div></div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 20px;box-shadow:0 1px 3px var(--shadow)"><div style="font-size:13px;color:var(--text-muted)">รออนุมัติ</div><div style="font-size:30px;font-weight:800;color:var(--warning);margin-top:4px">{{ regPending }}</div></div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:0 1px 3px var(--shadow);overflow:hidden">
+          <div style="padding:18px 22px;border-bottom:1px solid var(--border)"><h3 style="font-size:16px;font-weight:800;margin:0">คำขอสมัครใช้งานระบบ</h3></div>
+          <table style="width:100%;border-collapse:collapse;font-size:13.5px">
+            <thead><tr style="text-align:left;color:var(--text-muted);font-size:12px"><th style="padding:11px 22px;font-weight:600">สถานศึกษา</th><th style="padding:11px 12px;font-weight:600">จังหวัด</th><th style="padding:11px 12px;font-weight:600">ผู้ดูแล</th><th style="padding:11px 12px;font-weight:600">วันที่</th><th style="padding:11px 12px;font-weight:600">สถานะ</th><th style="padding:11px 22px;font-weight:600;text-align:right">จัดการ</th></tr></thead>
+            <tbody>
+              <sc-for list="{{ regList }}" as="rg" hint-placeholder-count="3">
+                <tr style="border-top:1px solid var(--border)">
+                  <td style="padding:13px 22px;font-weight:600">{{ rg.name }}</td>
+                  <td style="padding:13px 12px;color:var(--text-muted)">{{ rg.province }}</td>
+                  <td style="padding:13px 12px;color:var(--text-muted)">{{ rg.adminName }}</td>
+                  <td style="padding:13px 12px;color:var(--text-muted)">{{ rg.date }}</td>
+                  <td style="padding:13px 12px"><span style="{{ rg.statusChip }}">{{ rg.statusLabel }}</span></td>
+                  <td style="padding:13px 22px;text-align:right"><sc-if value="{{ rg.isPending }}" hint-placeholder-val="{{ false }}"><button onClick="{{ rg.onApprove }}" style="padding:6px 14px;border:none;border-radius:7px;background:var(--maroon);color:var(--on-maroon);font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer">อนุมัติ</button></sc-if><sc-if value="{{ rg.isApproved }}" hint-placeholder-val="{{ false }}"><span style="font-size:12.5px;color:var(--text-faint)">—</span></sc-if></td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      </sc-if>
+
+    </div>
+  </main>
+</div>
+</sc-if>
+
+<!-- ============ PUBLIC ============ -->
+<sc-if value="{{ isPublic }}" hint-placeholder-val="{{ false }}">
+<div style="min-height:100vh;background:var(--bg)">
+  <div style="background:var(--surface);border-bottom:2px solid var(--maroon);position:sticky;top:0;z-index:5">
+    <div style="max-width:1000px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px">
+      <div style="display:flex;align-items:center;gap:14px">
+        <div style="width:50px;height:50px;border-radius:11px;overflow:hidden;border:1px solid var(--border);flex:none"><img ref="{{ logoRef }}" alt="ตราสถานศึกษา" style="width:100%;height:100%;object-fit:contain;background:#fff"></div>
+        <div><div style="font-size:17px;font-weight:800;line-height:1.2">{{ school.name }}</div><div style="font-size:12.5px;color:var(--text-muted)">การเปิดเผยข้อมูลสาธารณะ (OIT) · {{ activeYearLabel }}</div></div>
+      </div>
+      <button onClick="{{ closePublic }}" style="padding:8px 16px;border:1px solid var(--border-strong);border-radius:9px;background:var(--surface);color:var(--text);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">← กลับสู่ระบบ</button>
+    </div>
+  </div>
+  <div style="max-width:1000px;margin:0 auto;padding:28px 24px 60px">
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:24px">
+      <div style="flex:1;min-width:160px;background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:16px 20px"><div style="font-size:12.5px;color:var(--text-muted)">ความครบถ้วน</div><div style="font-size:26px;font-weight:800;color:var(--maroon)">{{ pctLabel }}</div></div>
+      <div style="flex:1;min-width:160px;background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:16px 20px"><div style="font-size:12.5px;color:var(--text-muted)">เผยแพร่แล้ว</div><div style="font-size:26px;font-weight:800;color:var(--text)">{{ doneCount }}/{{ totalCount }}</div></div>
+      <div style="flex:2;min-width:240px;background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:14px 18px"><div style="font-size:12px;color:var(--text-muted);margin-bottom:5px">ลิงก์สำหรับเชื่อมโยงกับเว็บไซต์สถานศึกษา</div><div style="display:flex;gap:8px;align-items:center"><code style="flex:1;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--maroon)">{{ publicLink }}</code><button onClick="{{ copyPublic }}" style="padding:6px 12px;border:1px solid var(--maroon);border-radius:7px;background:var(--maroon-soft);color:var(--maroon);font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">คัดลอก</button></div></div>
+    </div>
+    <sc-for list="{{ pubTree }}" as="psec" hint-placeholder-count="2">
+      <h2 style="font-size:18px;font-weight:800;margin:26px 0 12px;padding-bottom:9px;border-bottom:2px solid var(--maroon);color:var(--maroon)">{{ psec.title }}</h2>
+      <sc-for list="{{ psec.subs }}" as="psub" hint-placeholder-count="2">
+        <h3 style="font-size:15px;font-weight:700;margin:18px 0 8px">{{ psub.title }}</h3>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+          <table style="width:100%;border-collapse:collapse;font-size:13.5px">
+            <thead><tr style="background:var(--surface-2);text-align:left;color:var(--text-muted);font-size:12px"><th style="padding:10px 14px;width:56px;font-weight:600">ข้อ</th><th style="padding:10px 14px;font-weight:600">ตัวชี้วัด</th><th style="padding:10px 14px;width:130px;font-weight:600">สถานะ</th><th style="padding:10px 14px;width:200px;font-weight:600">หลักฐาน</th></tr></thead>
+            <tbody>
+              <sc-for list="{{ psub.rows }}" as="prow" hint-placeholder-count="3">
+                <tr style="border-top:1px solid var(--border)">
+                  <td style="padding:12px 14px;font-weight:800;color:var(--maroon);vertical-align:top">{{ prow.code }}</td>
+                  <td style="padding:12px 14px;vertical-align:top">{{ prow.title }}</td>
+                  <td style="padding:12px 14px;vertical-align:top"><span style="{{ prow.statusChip }}">{{ prow.statusLabel }}</span></td>
+                  <td style="padding:12px 14px;vertical-align:top">
+                    <sc-if value="{{ prow.hasEv }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex;flex-direction:column;gap:5px">
+                      <sc-for list="{{ prow.evidences }}" as="pev" hint-placeholder-count="1">
+                        <sc-if value="{{ pev.hasLink }}" hint-placeholder-val="{{ true }}"><a href="{{ pev.href }}" target="_blank" style="color:var(--maroon);font-size:13px;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 5h10v10M19 5L7 17"/></svg>{{ pev.label }}</a></sc-if>
+                        <sc-if value="{{ pev.isTextOnly }}" hint-placeholder-val="{{ false }}"><span style="font-size:12.5px;color:var(--text-muted)">{{ pev.label }}</span></sc-if>
+                      </sc-for>
+                    </div>
+                    </sc-if>
+                    <sc-if value="{{ prow.noEv }}" hint-placeholder-val="{{ false }}"><span style="font-size:12.5px;color:var(--text-faint)">—</span></sc-if>
+                  </td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+      </sc-for>
+    </sc-for>
+    <div style="margin-top:32px;text-align:center;font-size:12px;color:var(--text-faint)">เผยแพร่ผ่านระบบเปิดเผยข้อมูลสาธารณะ (OIT) · สำนักงานคณะกรรมการการอาชีวศึกษา</div>
+  </div>
+</div>
+</sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;100%&quot;,&quot;height&quot;:&quot;100%&quot;},&quot;defaultTheme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;system&quot;,&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;system&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;showDemoSwitcher&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;},&quot;systemName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;ระบบเปิดเผยข้อมูลสาธารณะ (OIT)&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  constructor(props){
+    super(props);
+    this.rootRef = (el)=>{ this._root = el; if(el) this.applyTheme(); };
+    this._logoEls = [];
+    this.logoRef = (el)=>{ if(el){ this._logoEls.push(el); el.src = this.computeLogo(); } };
+    this.state = this.initState();
+  }
+
+  initState(){
+    let saved=null;
+    try{ saved=JSON.parse(localStorage.getItem('oit_state_v3')||'null'); }catch(e){}
+    const dflTheme=(this.props&&this.props.defaultTheme)||'system';
+    return {
+      screen:'login', view:'dashboard', role:'user', publicFrom:'login',
+      theme:(saved&&saved.theme)||dflTheme,
+      years:(saved&&saved.years)||[{id:'2568',label:'ปีงบประมาณ พ.ศ. 2568',active:true},{id:'2567',label:'ปีงบประมาณ พ.ศ. 2567',active:false}],
+      activeYear:(saved&&saved.activeYear)||'2568',
+      dataByYear:(saved&&saved.dataByYear)||this.defaultData(),
+      users:(saved&&saved.users)||this.defaultUsers(),
+      school:(saved&&saved.school)||{name:'วิทยาลัยเทคนิคนครหลวง',province:'กรุงเทพมหานคร',slug:'nakhonluang',emblem:null},
+      registrations:(saved&&saved.registrations)||this.defaultRegs(),
+      currentUserName:'', currentUserInitial:'', selectedCode:null,
+      liCid:'', liPw:'', loginError:'',
+      regSchool:'', regProvince:'', regAdmin:'', regCid:'', regEmail:'', regDone:null,
+      np1:'', np2:'', pwError:'',
+      evType:'link', evTitle:'', evUrl:'', evNote:'', evFileName:'', evImgSrc:'',
+      auName:'', auCid:'', auRole:'user', userError:'', newCred:null,
+      edTitle:'', edCriteria:'',
+      nyLabel:'', nyClone:'2568',
+      toast:null
+    };
+  }
+
+  componentDidMount(){
+    this._mq=window.matchMedia('(prefers-color-scheme: dark)');
+    this._mqh=()=>{ if(this.state.theme==='system') this.applyTheme(); };
+    this._mq.addEventListener('change',this._mqh);
+    this.applyTheme();
+  }
+  componentWillUnmount(){ if(this._mq) this._mq.removeEventListener('change',this._mqh); }
+  computeLogo(){ return (this.state.school&&this.state.school.emblem)||'assets/ovec-logo.jpg'; }
+  componentDidUpdate(){ const l=this.computeLogo(); this._logoEls=this._logoEls.filter(e=>e&&e.isConnected); this._logoEls.forEach(e=>{ if(e.getAttribute('src')!==l) e.src=l; }); }
+
+  themeVars(dark){
+    return dark ? {
+      '--bg':'#15100E','--surface':'#1E1714','--surface-2':'#251D19','--surface-3':'#2F2520',
+      '--border':'#3A2F2A','--border-strong':'#4C3E37','--text':'#F1E9E3','--text-muted':'#B2A69E','--text-faint':'#80746C',
+      '--maroon':'#C8505E','--maroon-deep':'#8E2230','--maroon-bright':'#DA6B76','--maroon-soft':'#2E1A1B',
+      '--gold':'#D2A656','--success':'#54A77E','--success-soft':'#1E2C25','--warning':'#D2982F','--warning-soft':'#2E2618',
+      '--danger':'#D96666','--danger-soft':'#2F1C1B','--shadow':'rgba(0,0,0,0.45)','--on-maroon':'#FFFFFF'
+    } : {
+      '--bg':'#F4F1ED','--surface':'#FFFFFF','--surface-2':'#FAF7F3','--surface-3':'#EFE9E3',
+      '--border':'#E7E0D9','--border-strong':'#D6CBC2','--text':'#221C18','--text-muted':'#6E645C','--text-faint':'#9E938A',
+      '--maroon':'#7A1E28','--maroon-deep':'#5C141C','--maroon-bright':'#93242F','--maroon-soft':'#F3E5E3',
+      '--gold':'#B8893B','--success':'#2F7A57','--success-soft':'#E5F0EA','--warning':'#A8701A','--warning-soft':'#F5ECD7',
+      '--danger':'#B23A3A','--danger-soft':'#F6E3E1','--shadow':'rgba(74,30,24,0.10)','--on-maroon':'#FFFFFF'
+    };
+  }
+  applyTheme(){
+    if(!this._root) return;
+    let dark;
+    if(this.state.theme==='dark') dark=true;
+    else if(this.state.theme==='light') dark=false;
+    else dark=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const v=this.themeVars(dark);
+    for(const k in v) this._root.style.setProperty(k,v[k]);
+  }
+  setTheme(mode){ this.setState({theme:mode},()=>{ this.applyTheme(); this.persist(); }); }
+
+  persist(){
+    try{
+      const s=this.state;
+      localStorage.setItem('oit_state_v3',JSON.stringify({theme:s.theme,years:s.years,activeYear:s.activeYear,dataByYear:s.dataByYear,users:s.users,school:s.school,registrations:s.registrations}));
+    }catch(e){}
+  }
+  toast(msg){ this.setState({toast:msg}); clearTimeout(this._t); this._t=setTimeout(()=>this.setState({toast:null}),2200); }
+  genPwd(){ const c='ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'; let s=''; for(let i=0;i<8;i++) s+=c[Math.floor(Math.random()*c.length)]; return s+'#'+Math.floor(Math.random()*90+10); }
+
+  buildSections(){
+    const mk=(code,title,criteria)=>({code,title,criteria,status:'pending',evidences:[]});
+    return [
+      {id:'9',title:'ส่วนที่ 1 · การเปิดเผยข้อมูล',short:'ตัวชี้วัดที่ 9',subs:[
+        {id:'9.1',title:'9.1 ข้อมูลพื้นฐาน',inds:[
+          mk('O1','โครงสร้างหน่วยงาน','แสดงแผนผังโครงสร้างการแบ่งส่วนราชการของสถานศึกษา'),
+          mk('O2','ข้อมูลผู้บริหาร','แสดงรายชื่อ ตำแหน่ง และภาพถ่ายผู้บริหารสถานศึกษา'),
+          mk('O3','อำนาจหน้าที่','แสดงข้อมูลหน้าที่และอำนาจของสถานศึกษาตามที่กฎหมายกำหนด'),
+          mk('O4','ข้อมูลการติดต่อ','แสดงที่อยู่ เบอร์โทรศัพท์ อีเมล และแผนที่ตั้งของสถานศึกษา'),
+          mk('O5','ข่าวประชาสัมพันธ์','แสดงข้อมูลข่าวสารที่เกี่ยวข้องกับการดำเนินงานในปีงบประมาณ'),
+          mk('O6','Q&A','แสดงช่องทางที่บุคคลภายนอกสามารถสอบถามข้อมูลและได้รับคำตอบ')
+        ]},
+        {id:'9.2',title:'9.2 การบริหารงานและการใช้จ่ายงบประมาณ',inds:[
+          mk('O7','แผนพัฒนาสถานศึกษา','แสดงแผนการดำเนินงานตามยุทธศาสตร์/แผนพัฒนาสถานศึกษา'),
+          mk('O8','แผนและความก้าวหน้าการดำเนินงานประจำปี','แสดงความก้าวหน้าการดำเนินงานตามแผนปฏิบัติราชการประจำปี'),
+          mk('O9','รายงานผลการดำเนินงานประจำปี','แสดงผลการดำเนินงานตามแผนปฏิบัติราชการประจำปีที่ผ่านมา'),
+          mk('O10','คู่มือหรือแนวทางการปฏิบัติงาน','แสดงคู่มือหรือแนวทางการปฏิบัติงานของบุคลากร'),
+          mk('O11','คู่มือหรือแนวทางการให้บริการ','แสดงคู่มือการให้บริการสำหรับผู้รับบริการหรือผู้มาติดต่อ'),
+          mk('O12','ข้อมูลสถิติการให้บริการ','แสดงข้อมูลสถิติการให้บริการตามภารกิจของสถานศึกษา'),
+          mk('O13','รายงานการกำกับติดตามการใช้จ่ายงบประมาณประจำปี','แสดงผลการใช้จ่ายงบประมาณรายไตรมาส')
+        ]},
+        {id:'9.3',title:'9.3 การจัดซื้อจัดจ้าง',inds:[
+          mk('O14','แผนการจัดซื้อจัดจ้างหรือแผนการจัดหาพัสดุ','แสดงแผนการจัดซื้อจัดจ้างประจำปี'),
+          mk('O15','ประกาศต่าง ๆ เกี่ยวกับการจัดซื้อจัดจ้าง','แสดงประกาศจัดซื้อจัดจ้างตามที่หน่วยงานต้องดำเนินการ'),
+          mk('O16','สรุปผลการจัดซื้อจัดจ้างรายเดือน','แสดงสรุปผลการจัดซื้อจัดจ้าง (แบบ สขร.1) รายเดือน'),
+          mk('O17','รายงานผลการจัดซื้อจัดจ้างประจำปี','แสดงผลการจัดซื้อจัดจ้างและการวิเคราะห์ผลประจำปี')
+        ]},
+        {id:'9.4',title:'9.4 การบริหารและพัฒนาทรัพยากรบุคคล',inds:[
+          mk('O18','นโยบายการบริหารทรัพยากรบุคคล','แสดงนโยบายการบริหารและพัฒนาทรัพยากรบุคคล'),
+          mk('O19','หลักเกณฑ์การบริหารและพัฒนาทรัพยากรบุคคล','แสดงหลักเกณฑ์การสรรหา บรรจุ แต่งตั้ง พัฒนา ประเมินผล'),
+          mk('O20','รายงานผลการบริหารและพัฒนาทรัพยากรบุคคลประจำปี','แสดงผลการบริหารและพัฒนาทรัพยากรบุคคลที่ผ่านมา')
+        ]},
+        {id:'9.5',title:'9.5 การส่งเสริมความโปร่งใส',inds:[
+          mk('O21','แนวปฏิบัติการจัดการเรื่องร้องเรียนการทุจริต','แสดงแนวปฏิบัติการจัดการเรื่องร้องเรียนและประพฤติมิชอบ'),
+          mk('O22','ช่องทางแจ้งเรื่องร้องเรียนการทุจริต','แสดงช่องทางออนไลน์สำหรับแจ้งเรื่องร้องเรียน'),
+          mk('O23','ข้อมูลเชิงสถิติเรื่องร้องเรียนการทุจริตประจำปี','แสดงข้อมูลสถิติเรื่องร้องเรียนการทุจริตและประพฤติมิชอบ'),
+          mk('O24','การเปิดโอกาสให้มีส่วนร่วม','แสดงการเปิดโอกาสให้ผู้มีส่วนได้ส่วนเสียมีส่วนร่วม')
+        ]}
+      ]},
+      {id:'10',title:'ส่วนที่ 2 · การป้องกันการทุจริต',short:'ตัวชี้วัดที่ 10',subs:[
+        {id:'10.1',title:'10.1 นโยบาย No Gift Policy',inds:[
+          mk('O25','ประกาศเจตนารมณ์นโยบาย No Gift Policy','แสดงประกาศเจตนารมณ์ไม่รับของขวัญและของกำนัล'),
+          mk('O26','การสร้างวัฒนธรรม No Gift Policy','แสดงการดำเนินกิจกรรมเสริมสร้างวัฒนธรรมองค์กร'),
+          mk('O27','รายงานผลตามนโยบาย No Gift Policy','แสดงผลการดำเนินการตามนโยบายในรอบปี'),
+          mk('O28','การประเมินความเสี่ยงการทุจริต','แสดงผลการประเมินความเสี่ยงการทุจริตในประเด็นที่เกี่ยวข้อง'),
+          mk('O29','รายงานผลการดำเนินการเพื่อจัดการความเสี่ยงการทุจริต','แสดงผลการดำเนินการตามมาตรการจัดการความเสี่ยง')
+        ]},
+        {id:'10.2',title:'10.2 มาตรการส่งเสริมคุณธรรมและความโปร่งใส',inds:[
+          mk('O30','แผนปฏิบัติการป้องกันการทุจริต','แสดงแผนปฏิบัติการป้องกันการทุจริตประจำปี'),
+          mk('O31','รายงานผลการดำเนินการป้องกันการทุจริตประจำปี','แสดงผลการดำเนินงานตามแผนป้องกันการทุจริต'),
+          mk('O32','มาตรการส่งเสริมคุณธรรมและความโปร่งใสภายในสถานศึกษา','แสดงการวิเคราะห์ผลการประเมินและมาตรการที่กำหนด'),
+          mk('O33','การดำเนินการตามมาตรการส่งเสริมคุณธรรมและความโปร่งใส','แสดงผลการดำเนินการตามมาตรการที่กำหนด')
+        ]}
+      ]}
+    ];
+  }
+  eachInd(sections,fn){ sections.forEach(se=>se.subs.forEach(su=>su.inds.forEach(fn))); }
+  findInd(sections,code){ let r=null; this.eachInd(sections,i=>{ if(i.code===code) r=i; }); return r; }
+  defaultData(){
+    const base=this.buildSections();
+    const y68=JSON.parse(JSON.stringify(base)); this.seed68(y68);
+    const y67=JSON.parse(JSON.stringify(base)); this.eachInd(y67,i=>{ i.status='done'; i.evidences=[{id:i.code+'-0',type:'link',title:'หลักฐานปีงบประมาณ 2567',url:'https://www.nakhonluang.ac.th/oit/2567/'+i.code}]; });
+    return {'2568':y68,'2567':y67};
+  }
+  seed68(s){
+    const set=(code,status,evs)=>{ const ind=this.findInd(s,code); if(!ind) return; ind.status=status; ind.evidences=(evs||[]).map((e,i)=>Object.assign({id:code+'-'+i},e)); };
+    const L='https://www.nakhonluang.ac.th/oit/';
+    set('O1','done',[{type:'link',title:'แผนผังโครงสร้างการบริหารงาน',url:L+'structure'}]);
+    set('O2','done',[{type:'link',title:'ทำเนียบผู้บริหาร',url:L+'executives'},{type:'image',title:'ภาพผู้อำนวยการสถานศึกษา'}]);
+    set('O3','done',[{type:'link',title:'อำนาจหน้าที่ตามกฎหมาย',url:L+'authority'}]);
+    set('O4','done',[{type:'link',title:'ที่ตั้งและช่องทางติดต่อ',url:L+'contact'},{type:'text',title:'ที่อยู่สถานศึกษา',note:'เลขที่ 199 ถ.เจ้าฟ้า แขวงพระบรมมหาราชวัง เขตพระนคร กรุงเทพฯ 10200 โทร 0-2222-xxxx'}]);
+    set('O5','inprogress',[{type:'link',title:'ข่าวประชาสัมพันธ์ปี 2568',url:L+'news'}]);
+    set('O6','done',[{type:'link',title:'กระดานถาม-ตอบ (Q&A)',url:L+'qa'}]);
+    set('O7','done',[{type:'file',title:'แผนพัฒนาสถานศึกษา 2566-2570.pdf',fileName:'แผนพัฒนาสถานศึกษา.pdf',url:L+'plan.pdf'}]);
+    set('O8','inprogress',[{type:'link',title:'รายงานความก้าวหน้ารอบ 6 เดือน',url:L+'progress'}]);
+    set('O9','done',[{type:'file',title:'รายงานผลการดำเนินงานประจำปี 2567.pdf',fileName:'annual-report-2567.pdf',url:L+'report.pdf'}]);
+    set('O10','done',[{type:'link',title:'คู่มือการปฏิบัติงานบุคลากร',url:L+'manual-staff'}]);
+    set('O11','done',[{type:'link',title:'คู่มือการให้บริการนักเรียนนักศึกษา',url:L+'manual-service'}]);
+    set('O12','done',[{type:'link',title:'สถิติการให้บริการ ปี 2568',url:L+'stats'}]);
+    set('O14','inprogress',[{type:'link',title:'แผนการจัดซื้อจัดจ้าง 2568',url:L+'procurement-plan'}]);
+    set('O15','done',[{type:'link',title:'ประกาศจัดซื้อจัดจ้าง',url:L+'procurement'}]);
+    set('O21','done',[{type:'link',title:'แนวปฏิบัติการจัดการเรื่องร้องเรียน',url:L+'complaint-guide'}]);
+    set('O22','done',[{type:'link',title:'ระบบรับเรื่องร้องเรียนออนไลน์',url:L+'complaint'},{type:'text',title:'ช่องทางเพิ่มเติม',note:'กล่องรับเรื่องร้องเรียนหน้าห้องอำนวยการ และอีเมล complaint@nakhonluang.ac.th'}]);
+    set('O25','done',[{type:'image',title:'ประกาศเจตนารมณ์ No Gift Policy'},{type:'link',title:'หน้าประกาศนโยบาย',url:L+'nogift'}]);
+    set('O28','inprogress',[{type:'text',title:'สรุปการประเมินความเสี่ยง',note:'อยู่ระหว่างรวบรวมผลการประเมินความเสี่ยงการทุจริตจากทุกฝ่ายงาน'}]);
+  }
+  defaultUsers(){
+    return [
+      {name:'นายสมชาย ใจดี',cid:'1100700123456',role:'schooladmin',status:'active',last:'17 มิ.ย. 2569 09:12',mustChange:false},
+      {name:'นางสาวสุดา รักเรียน',cid:'1100700234567',role:'user',status:'active',last:'16 มิ.ย. 2569 14:30',mustChange:false},
+      {name:'นายวิชัย พากเพียร',cid:'1100700345678',role:'user',status:'pending',last:'-',mustChange:true},
+      {name:'นางมาลี ตั้งใจ',cid:'1100700456789',role:'user',status:'active',last:'15 มิ.ย. 2569 11:05',mustChange:false}
+    ];
+  }
+  defaultRegs(){
+    return [
+      {name:'วิทยาลัยเทคนิคนครหลวง',province:'กรุงเทพมหานคร',adminName:'นายสมชาย ใจดี',cid:'1100700123456',status:'approved',date:'20 เม.ย. 2569'},
+      {name:'วิทยาลัยอาชีวศึกษาเชียงใหม่',province:'เชียงใหม่',adminName:'นางมาลี อินทนนท์',cid:'1509900111222',status:'approved',date:'02 พ.ค. 2569'},
+      {name:'วิทยาลัยการอาชีพหัวหิน',province:'ประจวบคีรีขันธ์',adminName:'นายอนุชา ทะเลงาม',cid:'1779900333444',status:'pending',date:'12 มิ.ย. 2569'},
+      {name:'วิทยาลัยเทคนิคขอนแก่น',province:'ขอนแก่น',adminName:'นางสาวพรทิพย์ ศรีเมือง',cid:'1409900555666',status:'pending',date:'15 มิ.ย. 2569'}
+    ];
+  }
+
+  statusMeta(){ return {pending:{label:'ยังไม่ดำเนินการ',fg:'var(--text-muted)',bg:'var(--surface-3)',dot:'var(--text-faint)'},inprogress:{label:'กำลังดำเนินการ',fg:'var(--warning)',bg:'var(--warning-soft)',dot:'var(--warning)'},done:{label:'เผยแพร่แล้ว',fg:'var(--success)',bg:'var(--success-soft)',dot:'var(--success)'}}; }
+  activeSections(){ return this.state.dataByYear[this.state.activeYear]||[]; }
+  yearLabel(id){ const y=this.state.years.find(y=>y.id===id); return y?y.label:id; }
+
+  // navigation
+  go(view){ this.setState({view}); }
+  selectInd(code){ const ind=this.findInd(this.activeSections(),code); this.setState({selectedCode:code,edTitle:ind?ind.title:'',edCriteria:ind?ind.criteria:''}); }
+  openPublic(){ this.setState({publicFrom:this.state.screen,screen:'public'}); }
+  closePublic(){ this.setState({screen:this.state.publicFrom==='public'?'app':this.state.publicFrom}); }
+  logout(){ this.setState({screen:'login',role:'user',liCid:'',liPw:'',selectedCode:null,loginError:''}); }
+
+  // login / register
+  doLogin(){
+    const st=this.state, cid=st.liCid.trim();
+    if(cid.length<5){ this.setState({loginError:'กรุณากรอกเลขประจำตัวประชาชน'}); return; }
+    if(!st.liPw){ this.setState({loginError:'กรุณากรอกรหัสผ่าน'}); return; }
+    const u=st.users.find(x=>x.cid===cid);
+    const role=u?u.role:'user', name=u?u.name:'ผู้ใช้งานสถานศึกษา';
+    if(u&&u.mustChange){ this.setState({screen:'firstlogin',role,currentUserName:name,currentUserInitial:name.replace(/^(นาย|นาง|นางสาว)/,'').trim()[0]||'อ',loginError:''}); }
+    else { this.enterApp(role,name); }
+  }
+  enterApp(role,name){ this.setState({screen:'app',role,currentUserName:name,currentUserInitial:name.replace(/^(นาย|นาง|นางสาว)/,'').trim()[0]||'อ',view:role==='centraladmin'?'criteria':'dashboard',loginError:'',selectedCode:null}); }
+  demoLogin(role){ const map={user:'นางสาวสุดา รักเรียน',schooladmin:'นายสมชาย ใจดี',centraladmin:'ผู้ดูแลส่วนกลาง สอศ.'}; this.enterApp(role,map[role]); }
+  openRegister(){ this.setState({screen:'register',regDone:null}); }
+  backToLogin(){ this.setState({screen:'login',regDone:null}); }
+  doRegister(){
+    const st=this.state;
+    if(!st.regSchool.trim()||!st.regAdmin.trim()){ this.toast('กรุณากรอกข้อมูลให้ครบ'); return; }
+    if(!/^\d{13}$/.test(st.regCid.trim())){ this.toast('เลขประจำตัวประชาชนต้องมี 13 หลัก'); return; }
+    const pw=this.genPwd();
+    const regs=[{name:st.regSchool.trim(),province:st.regProvince.trim()||'-',adminName:st.regAdmin.trim(),cid:st.regCid.trim(),status:'pending',date:'วันนี้'}].concat(st.registrations);
+    this.setState({registrations:regs,regDone:{cid:st.regCid.trim(),pw,school:st.regSchool.trim()},regSchool:'',regProvince:'',regAdmin:'',regCid:'',regEmail:''},this.persist.bind(this));
+  }
+  doSetPassword(){
+    const {np1,np2}=this.state;
+    if(np1.length<8){ this.setState({pwError:'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร'}); return; }
+    if(np1!==np2){ this.setState({pwError:'รหัสผ่านยืนยันไม่ตรงกัน'}); return; }
+    const users=this.state.users.map(u=>u.name===this.state.currentUserName?Object.assign({},u,{mustChange:false,status:'active'}):u);
+    this.setState({users,np1:'',np2:'',pwError:''},()=>{ this.persist(); this.enterApp(this.state.role,this.state.currentUserName); this.toast('ตั้งรหัสผ่านใหม่เรียบร้อยแล้ว'); });
+  }
+
+  // evidence
+  setEvType(t){ this.setState({evType:t}); }
+  onPickFile(e){ const f=e.target.files[0]; if(!f) return; this.setState({evFileName:f.name}); }
+  onPickImage(e){ const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>this.setState({evImgSrc:r.result,evFileName:f.name}); r.readAsDataURL(f); }
+  addEvidence(){
+    const st=this.state, ind=this.findInd(this.activeSections(),st.selectedCode); if(!ind) return;
+    const t=st.evType, ev={id:'e'+Date.now(),type:t};
+    if(t==='link'){ if(!st.evUrl.trim()){ this.toast('กรุณากรอกลิงก์ URL'); return; } ev.url=st.evUrl.trim(); ev.title=st.evTitle.trim()||'ลิงก์หลักฐาน'; }
+    else if(t==='text'){ if(!st.evNote.trim()){ this.toast('กรุณากรอกข้อความ'); return; } ev.note=st.evNote.trim(); ev.title=st.evTitle.trim()||'คำอธิบาย/ข้อความ'; }
+    else if(t==='file'){ if(!st.evFileName){ this.toast('กรุณาเลือกไฟล์'); return; } ev.fileName=st.evFileName; ev.title=st.evTitle.trim()||st.evFileName; ev.url=st.evUrl.trim(); }
+    else if(t==='image'){ if(!st.evImgSrc){ this.toast('กรุณาเลือกรูปภาพ'); return; } ev.imgSrc=st.evImgSrc; ev.fileName=st.evFileName; ev.title=st.evTitle.trim()||st.evFileName||'รูปภาพหลักฐาน'; }
+    ind.evidences.push(ev);
+    if(ind.status==='pending') ind.status='inprogress';
+    this.setState({evTitle:'',evUrl:'',evNote:'',evFileName:'',evImgSrc:''},this.persist.bind(this));
+    this.toast('เพิ่มหลักฐานแล้ว');
+  }
+  removeEvidence(code,id){ const ind=this.findInd(this.activeSections(),code); if(!ind) return; ind.evidences=ind.evidences.filter(e=>e.id!==id); this.persist(); this.forceUpdate(); }
+  setStatus(code,s){ const ind=this.findInd(this.activeSections(),code); if(!ind) return; ind.status=s; this.persist(); this.forceUpdate(); }
+
+  // users
+  setAuRole(e){ this.setState({auRole:e.target.value}); }
+  addUser(){
+    const st=this.state, cid=st.auCid.trim();
+    if(!st.auName.trim()){ this.setState({userError:'กรุณากรอกชื่อ-นามสกุล'}); return; }
+    if(!/^\d{13}$/.test(cid)){ this.setState({userError:'เลขประจำตัวประชาชนต้องเป็นตัวเลข 13 หลัก'}); return; }
+    if(st.users.some(u=>u.cid===cid)){ this.setState({userError:'มีผู้ใช้เลขประจำตัวนี้แล้ว'}); return; }
+    const pw=this.genPwd();
+    const users=st.users.concat([{name:st.auName.trim(),cid,role:st.auRole,status:'pending',last:'-',mustChange:true}]);
+    this.setState({users,auName:'',auCid:'',auRole:'user',userError:'',newCred:{cid,pw}},this.persist.bind(this));
+  }
+  resetPwd(cid){ const pw=this.genPwd(); const users=this.state.users.map(u=>u.cid===cid?Object.assign({},u,{mustChange:true,status:'pending'}):u); this.setState({users,newCred:{cid,pw}},this.persist.bind(this)); }
+  toggleUser(cid){ const users=this.state.users.map(u=>u.cid===cid?Object.assign({},u,{status:u.status==='disabled'?'active':'disabled'}):u); this.setState({users},this.persist.bind(this)); }
+  dismissCred(){ this.setState({newCred:null}); }
+  uploadEmblem(e){ const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ this.setState({school:Object.assign({},this.state.school,{emblem:r.result})},this.persist.bind(this)); this.toast('อัปเดตตราสถานศึกษาแล้ว'); }; r.readAsDataURL(f); }
+  removeEmblem(){ this.setState({school:Object.assign({},this.state.school,{emblem:null})},this.persist.bind(this)); }
+  copyLink(text,msg){ try{ navigator.clipboard.writeText(text); }catch(e){} this.toast(msg||'คัดลอกแล้ว'); }
+
+  // criteria / years
+  setNyClone(e){ this.setState({nyClone:e.target.value}); }
+  addYear(){
+    const st=this.state, label=st.nyLabel.trim(); if(!label){ this.toast('กรุณาระบุชื่อปีงบประมาณ'); return; }
+    const id='y'+Date.now();
+    const cloned=JSON.parse(JSON.stringify(st.dataByYear[st.nyClone]||this.activeSections()));
+    this.eachInd(cloned,i=>{ i.status='pending'; i.evidences=[]; });
+    const years=st.years.concat([{id,label,active:false}]);
+    const dataByYear=Object.assign({},st.dataByYear,{[id]:cloned});
+    this.setState({years,dataByYear,nyLabel:''},this.persist.bind(this));
+    this.toast('สร้างปีงบประมาณใหม่แล้ว (คัดลอกเกณฑ์ พร้อมล้างหลักฐาน)');
+  }
+  activateYear(id){ const years=this.state.years.map(y=>Object.assign({},y,{active:y.id===id})); this.setState({years,activeYear:id,selectedCode:null},this.persist.bind(this)); this.toast('เปิดใช้งาน'+this.yearLabel(id)+'แล้ว'); }
+  addIndicator(subId){
+    const sections=this.activeSections(); let max=0;
+    this.eachInd(sections,i=>{ const n=parseInt(i.code.replace(/\D/g,''),10); if(n>max) max=n; });
+    const code='O'+(max+1);
+    let target=null; sections.forEach(se=>se.subs.forEach(su=>{ if(su.id===subId) target=su; }));
+    if(!target) return;
+    target.inds.push({code,title:'ตัวชี้วัดใหม่',criteria:'ระบุเกณฑ์การประเมินของตัวชี้วัดนี้',status:'pending',evidences:[]});
+    this.persist(); this.selectInd(code);
+  }
+  deleteIndicator(){
+    const code=this.state.selectedCode, sections=this.activeSections();
+    sections.forEach(se=>se.subs.forEach(su=>{ su.inds=su.inds.filter(i=>i.code!==code); }));
+    this.setState({selectedCode:null},this.persist.bind(this)); this.toast('ลบตัวชี้วัดแล้ว');
+  }
+  saveIndicator(){ const ind=this.findInd(this.activeSections(),this.state.selectedCode); if(!ind) return; ind.title=this.state.edTitle; ind.criteria=this.state.edCriteria; this.persist(); this.forceUpdate(); this.toast('บันทึกการแก้ไขแล้ว'); }
+  approveReg(idx){ const registrations=this.state.registrations.map((r,i)=>i===idx?Object.assign({},r,{status:'approved'}):r); this.setState({registrations},this.persist.bind(this)); this.toast('อนุมัติสถานศึกษาแล้ว'); }
+
+  field(name){ return (e)=>this.setState({[name]:e.target.value}); }
+
+  evVM(ev,code){
+    const meta={link:'ลิงก์',file:'ไฟล์',image:'รูปภาพ',text:'ข้อความ'};
+    const isImage=ev.type==='image';
+    const hasImg=isImage&&!!ev.imgSrc;
+    const hasLink=!!(ev.url)||hasImg;
+    return {
+      typeLabel:meta[ev.type]||'หลักฐาน', hasImg, noImg:!hasImg, imgSrc:ev.imgSrc||'',
+      title:ev.title||meta[ev.type], sub:(ev.type==='text'?(ev.note||''):(ev.url||ev.fileName||ev.note||'')),
+      href:ev.url||ev.imgSrc||'#', hasLink, imgRef:(el)=>{ if(el&&ev.imgSrc) el.src=ev.imgSrc; }, onRemove:()=>this.removeEvidence(code,ev.id)
+    };
+  }
+
+  renderVals(){
+    const st=this.state, sm=this.statusMeta();
+    const systemName=(this.props&&this.props.systemName)||'ระบบเปิดเผยข้อมูลสาธารณะ (OIT)';
+    const showDemo=(this.props&&this.props.showDemoSwitcher!==undefined)?this.props.showDemoSwitcher:true;
+    const chip=(s)=>'display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap;color:'+sm[s].fg+';background:'+sm[s].bg;
+    const dot=(s)=>'width:9px;height:9px;border-radius:50%;flex:none;background:'+sm[s].dot;
+    const sections=this.activeSections();
+    const all=[]; this.eachInd(sections,i=>all.push(i));
+    const total=all.length, done=all.filter(i=>i.status==='done').length, prog=all.filter(i=>i.status==='inprogress').length;
+    const pend=total-done-prog, evCnt=all.reduce((a,i)=>a+i.evidences.length,0), pct=total?Math.round(done/total*100):0;
+    const headerLogo=st.school.emblem||'assets/ovec-logo.jpg';
+    const publicLink='https://oit.vec.go.th/s/'+st.school.slug+'/'+st.activeYear;
+    const embed='<iframe src="'+publicLink+'" width="100%" height="900" frameborder="0"></iframe>';
+
+    // nav styles
+    const navBase='display:flex;align-items:center;gap:11px;width:100%;padding:10px 13px;border:none;border-radius:10px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;text-align:left;';
+    const navStyle=(v)=>navBase+(st.view===v?'background:var(--maroon-soft);color:var(--maroon-bright)':'background:transparent;color:var(--text-muted)');
+    const seg=(m)=>{ const a=st.theme===m; return 'flex:1;padding:6px 14px;border:none;border-radius:7px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;color:'+(a?'var(--maroon)':'var(--text-muted)')+';background:'+(a?'var(--surface)':'transparent')+';box-shadow:'+(a?'0 1px 2px var(--shadow)':'none'); };
+    const roleBtn=(r)=>{ const a=st.role===r; return 'flex:1;padding:7px 4px;border:1px solid '+(a?'var(--maroon)':'var(--border-strong)')+';border-radius:8px;font-family:inherit;font-size:11.5px;font-weight:700;cursor:pointer;color:'+(a?'var(--maroon)':'var(--text-muted)')+';background:'+(a?'var(--maroon-soft)':'var(--surface)'); };
+
+    // indicator tree
+    const tree=sections.map(se=>({
+      title:se.title,
+      subs:se.subs.map(su=>({
+        title:su.title, onAdd:()=>this.addIndicator(su.id),
+        items:su.inds.map(ind=>{
+          const selected=st.selectedCode===ind.code;
+          return {
+            code:ind.code, title:ind.title,
+            evLabel:ind.evidences.length?(ind.evidences.length+' หลักฐาน'):'—',
+            dotStyle:dot(ind.status),
+            rowStyle:'display:flex;align-items:center;gap:10px;width:100%;padding:9px 11px;border:1px solid '+(selected?'var(--maroon)':'transparent')+';border-radius:9px;background:'+(selected?'var(--maroon-soft)':'transparent')+';color:var(--text);font-family:inherit;font-size:13px;cursor:pointer;text-align:left;margin-bottom:2px',
+            onSelect:()=>this.selectInd(ind.code)
+          };
+        })
+      }))
+    }));
+
+    // selected
+    const selInd=all.find(i=>i.code===st.selectedCode)||null;
+    let sel=null, selSubTitle='';
+    if(selInd){
+      sections.forEach(se=>se.subs.forEach(su=>{ if(su.inds.some(i=>i.code===selInd.code)) selSubTitle=su.title; }));
+      sel={code:selInd.code,title:selInd.title,criteria:selInd.criteria,count:selInd.evidences.length,hasEv:selInd.evidences.length>0,evidences:selInd.evidences.map(ev=>this.evVM(ev,selInd.code))};
+    }
+    const stBtn=(s)=>{ const a=selInd&&selInd.status===s; return 'flex:1;padding:9px;border:1px solid '+(a?sm[s].fg:'var(--border)')+';border-radius:9px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;color:'+(a?sm[s].fg:'var(--text-muted)')+';background:'+(a?sm[s].bg:'var(--surface)'); };
+    const tab=(t)=>{ const a=st.evType===t; return 'padding:8px 14px;border:1px solid '+(a?'var(--maroon)':'var(--border-strong)')+';border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;color:'+(a?'var(--maroon)':'var(--text-muted)')+';background:'+(a?'var(--maroon-soft)':'var(--surface)'); };
+
+    // dashboard
+    const sectionProg=sections.map(se=>{ const inds=[]; se.subs.forEach(su=>su.inds.forEach(i=>inds.push(i))); const t=inds.length, d=inds.filter(i=>i.status==='done').length, p=t?Math.round(d/t*100):0; return {title:se.title,pctLabel:p+'%',doneLabel:d+'/'+t,barStyle:'width:'+p+'%;height:100%;background:var(--maroon);border-radius:999px'}; });
+    const incomplete=all.filter(i=>i.status!=='done').slice(0,6).map(i=>({code:i.code,title:i.title,statusLabel:sm[i.status].label,chip:chip(i.status),onGo:()=>this.setState({view:'evidence',selectedCode:i.code,edTitle:i.title,edCriteria:i.criteria})}));
+
+    // users
+    const roleChip=(r)=>r==='schooladmin'?'display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;color:var(--maroon);background:var(--maroon-soft)':'display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;color:var(--text-muted);background:var(--surface-3)';
+    const ustat=(s)=>s==='active'?chip('done').replace(sm.done.label,''):s==='disabled'?'display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;color:var(--danger);background:var(--danger-soft)':'display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;color:var(--warning);background:var(--warning-soft)';
+    const ustatLabel=(s)=>s==='active'?'ใช้งานอยู่':s==='disabled'?'ปิดการใช้งาน':'รอเปลี่ยนรหัส';
+    const ustatChip=(s)=>'display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;color:'+(s==='active'?'var(--success)':s==='disabled'?'var(--danger)':'var(--warning)')+';background:'+(s==='active'?'var(--success-soft)':s==='disabled'?'var(--danger-soft)':'var(--warning-soft)');
+    const userList=st.users.map(u=>({
+      name:u.name, cid:u.cid, initial:(u.name.replace(/^(นาย|นาง|นางสาว)/,'').trim()[0]||'?'),
+      roleLabel:u.role==='schooladmin'?'ผู้ดูแลระบบสถานศึกษา':'ผู้กรอกข้อมูล', roleChip:roleChip(u.role),
+      statusLabel:ustatLabel(u.status), statusChip:ustatChip(u.status), last:u.last,
+      toggleLabel:u.status==='disabled'?'เปิดใช้งาน':'ปิดการใช้งาน',
+      onReset:()=>this.resetPwd(u.cid), onToggle:()=>this.toggleUser(u.cid)
+    }));
+
+    // years
+    const fiscalYears=st.years.map(y=>{ const data=st.dataByYear[y.id]||[]; let c=0; this.eachInd(data,()=>c++); return {label:y.label,active:y.active,inactive:!y.active,countLabel:c+' ตัวชี้วัด',cardStyle:'border:1px solid '+(y.active?'var(--maroon)':'var(--border)')+';border-radius:13px;padding:14px 18px;min-width:180px;background:'+(y.active?'var(--maroon-soft)':'var(--surface-2)'),onActivate:()=>this.activateYear(y.id)}; });
+    const yearOptions=st.years.map(y=>({id:y.id,label:y.label}));
+
+    // registrations
+    const rstatChip=(s)=>'display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;color:'+(s==='approved'?'var(--success)':'var(--warning)')+';background:'+(s==='approved'?'var(--success-soft)':'var(--warning-soft)');
+    const regList=st.registrations.map((r,idx)=>({name:r.name,province:r.province,adminName:r.adminName,date:r.date,statusLabel:r.status==='approved'?'อนุมัติแล้ว':'รออนุมัติ',statusChip:rstatChip(r.status),isPending:r.status==='pending',isApproved:r.status==='approved',onApprove:()=>this.approveReg(idx)}));
+
+    // public tree
+    const pubTree=sections.map(se=>({
+      title:se.title,
+      subs:se.subs.map(su=>({
+        title:su.title,
+        rows:su.inds.map(ind=>({
+          code:ind.code, title:ind.title, statusLabel:sm[ind.status].label, statusChip:chip(ind.status),
+          hasEv:ind.evidences.length>0, noEv:ind.evidences.length===0,
+          evidences:ind.evidences.map(ev=>{ const isImage=ev.type==='image'; const hasLink=!!ev.url||(isImage&&!!ev.imgSrc); return {label:ev.title||(ev.type==='text'?'คำอธิบาย':'หลักฐาน'),href:ev.url||ev.imgSrc||'#',hasLink,isTextOnly:!hasLink}; })
+        }))
+      }))
+    }));
+
+    return {
+      systemName, showDemo, headerLogo, publicLink, rootRef:this.rootRef, logoRef:this.logoRef,
+      toast:st.toast,
+      isLogin:st.screen==='login', isRegister:st.screen==='register', isFirstLogin:st.screen==='firstlogin', isApp:st.screen==='app', isPublic:st.screen==='public',
+      // login
+      liCid:st.liCid, liPw:st.liPw, loginError:st.loginError,
+      onLiCid:this.field('liCid'), onLiPw:this.field('liPw'),
+      doLogin:()=>this.doLogin(), openRegister:()=>this.openRegister(), openPublic:()=>this.openPublic(),
+      demoUser:()=>this.demoLogin('user'), demoSchoolAdmin:()=>this.demoLogin('schooladmin'), demoCentral:()=>this.demoLogin('centraladmin'),
+      // register
+      regNotDone:!st.regDone, regDoneFlag:!!st.regDone,
+      regSchool:st.regSchool, regProvince:st.regProvince, regAdmin:st.regAdmin, regCid:st.regCid, regEmail:st.regEmail,
+      onRegSchool:this.field('regSchool'), onRegProvince:this.field('regProvince'), onRegAdmin:this.field('regAdmin'), onRegCid:this.field('regCid'), onRegEmail:this.field('regEmail'),
+      doRegister:()=>this.doRegister(), backToLogin:()=>this.backToLogin(),
+      regDoneSchool:st.regDone?st.regDone.school:'', regDoneCid:st.regDone?st.regDone.cid:'', regDonePw:st.regDone?st.regDone.pw:'',
+      // first login
+      np1:st.np1, np2:st.np2, pwError:st.pwError, onNp1:this.field('np1'), onNp2:this.field('np2'), doSetPassword:()=>this.doSetPassword(),
+      // shell
+      school:st.school, currentUserName:st.currentUserName, currentUserInitial:st.currentUserInitial, roleLabel:(st.role==='schooladmin'?'ผู้ดูแลระบบสถานศึกษา':st.role==='centraladmin'?'ผู้ดูแลส่วนกลาง สอศ.':'ผู้กรอกข้อมูล'),
+      activeYearLabel:this.yearLabel(st.activeYear),
+      pageTitle:(st.view==='dashboard'?'ภาพรวมความคืบหน้า':st.view==='evidence'?'กรอกหลักฐานตัวชี้วัด':st.view==='users'?'จัดการผู้ใช้':st.view==='criteria'?'เกณฑ์ & ปีงบประมาณ':st.view==='schools'?'สถานศึกษาที่สมัครใช้งาน':''),
+      navUser:st.role!=='centraladmin', navSchoolAdmin:st.role==='schooladmin', navCentral:st.role==='centraladmin',
+      sDash:navStyle('dashboard'), sEvi:navStyle('evidence'), sUsr:navStyle('users'), sCri:navStyle('criteria'), sSch:navStyle('schools'),
+      goDashboard:()=>this.go('dashboard'), goEvidence:()=>this.go('evidence'), goUsers:()=>this.go('users'), goCriteria:()=>this.go('criteria'), goSchools:()=>this.go('schools'),
+      rUser:roleBtn('user'), rSadmin:roleBtn('schooladmin'), rCadmin:roleBtn('centraladmin'),
+      logout:()=>this.logout(),
+      thLight:seg('light'), thDark:seg('dark'), thSystem:seg('system'), setLight:()=>this.setTheme('light'), setDark:()=>this.setTheme('dark'), setSystem:()=>this.setTheme('system'),
+      // views
+      vDashboard:st.view==='dashboard', vEvidence:st.view==='evidence', vUsers:st.view==='users', vCriteria:st.view==='criteria', vSchools:st.view==='schools',
+      // dashboard
+      pct, pctLabel:pct+'%', doneCount:done, progCount:prog, pendCount:pend, totalCount:total, evCount:evCnt, lastUpdated:'17 มิ.ย. 2569',
+      ringStyle:'conic-gradient(var(--maroon) '+pct+'%, var(--surface-3) 0)',
+      sectionProg, incomplete,
+      // evidence
+      tree, hasSelection:!!sel, noSelection:!sel, sel, selSubTitle,
+      stPending:stBtn('pending'), stProg:stBtn('inprogress'), stDone:stBtn('done'),
+      setPending:()=>this.setStatus(st.selectedCode,'pending'), setProg:()=>this.setStatus(st.selectedCode,'inprogress'), setDone:()=>this.setStatus(st.selectedCode,'done'),
+      tLink:tab('link'), tFile:tab('file'), tImage:tab('image'), tText:tab('text'),
+      tabLink:()=>this.setEvType('link'), tabFile:()=>this.setEvType('file'), tabImage:()=>this.setEvType('image'), tabText:()=>this.setEvType('text'),
+      showUrl:st.evType==='link', showText:st.evType==='text', showFile:st.evType==='file', showImage:st.evType==='image',
+      evTitle:st.evTitle, evUrl:st.evUrl, evNote:st.evNote, evFileName:st.evFileName, evImgSrc:st.evImgSrc,
+      hasPickedFile:!!st.evFileName&&st.evType==='file', hasPickedImg:!!st.evImgSrc&&st.evType==='image',
+      onEvTitle:this.field('evTitle'), onEvUrl:this.field('evUrl'), onEvNote:this.field('evNote'),
+      onPickFile:(e)=>this.onPickFile(e), onPickImage:(e)=>this.onPickImage(e), addEvidence:()=>this.addEvidence(),
+      pickedImgRef:(el)=>{ if(el&&st.evImgSrc) el.src=st.evImgSrc; },
+      // users
+      hasEmblem:!!st.school.emblem, onUploadEmblem:(e)=>this.uploadEmblem(e), removeEmblem:()=>this.removeEmblem(),
+      copyPublic:()=>this.copyLink(publicLink,'คัดลอกลิงก์แสดงผลแล้ว'), copyEmbed:()=>this.copyLink(embed,'คัดลอกโค้ดสำหรับฝังเว็บแล้ว'),
+      newCredFlag:!!st.newCred, newCredCid:st.newCred?st.newCred.cid:'', newCredPw:st.newCred?st.newCred.pw:'', dismissCred:()=>this.dismissCred(),
+      userCountLabel:st.users.length+' บัญชี',
+      auName:st.auName, auCid:st.auCid, auRole:st.auRole, userError:st.userError,
+      onAuName:this.field('auName'), onAuCid:this.field('auCid'), onAuRole:(e)=>this.setAuRole(e), addUser:()=>this.addUser(),
+      userList,
+      // criteria
+      fiscalYears, yearOptions, nyLabel:st.nyLabel, nyClone:st.nyClone, onNyLabel:this.field('nyLabel'), onNyClone:(e)=>this.setNyClone(e), addYear:()=>this.addYear(),
+      edTitle:st.edTitle, edCriteria:st.edCriteria, onEdTitle:this.field('edTitle'), onEdCriteria:this.field('edCriteria'), saveIndicator:()=>this.saveIndicator(), deleteIndicator:()=>this.deleteIndicator(),
+      // schools
+      regTotal:st.registrations.length, regApproved:st.registrations.filter(r=>r.status==='approved').length, regPending:st.registrations.filter(r=>r.status==='pending').length, regList,
+      // public
+      pubTree, closePublic:()=>this.closePublic()
+    };
+  }
+}
+</script>
+</body>
+</html>

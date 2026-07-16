@@ -1,0 +1,23 @@
+# Uploaded files (keep directory structure via .htaccess)
+uploads/emblems/
+uploads/*.pdf
+uploads/*.doc
+uploads/*.docx
+uploads/*.xls
+uploads/*.xlsx
+uploads/*.jpg
+uploads/*.jpeg
+uploads/*.png
+uploads/*.gif
+uploads/*.webp
+uploads/*.svg
+uploads/*.pdf
+
+# PHP environment overrides
+.env
+.env.*
+
+# IDE / OS
+.DS_Store
+Thumbs.db
+*.log
