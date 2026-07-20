@@ -24,3 +24,6 @@ uploads/*.pdf
 .DS_Store
 Thumbs.db
 *.log
+
+# Debug flag (create to enable on-screen errors)
+.debug
