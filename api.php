@@ -128,6 +128,8 @@ match ($action) {
     'reorder_evidence' => reorderEvidence(),
     'upload_emblem'    => uploadEmblem(),
     'add_user'         => addUser(),
+    'update_rms_url'   => updateRmsUrl(),
+    'import_rms_users' => importRmsUsers(),
     'reset_password'   => resetPassword(),
     'toggle_user'      => toggleUser(),
     'add_fiscal_year'  => addFiscalYear(),
@@ -440,6 +442,97 @@ function toggleUser(): never {
 
     db()->prepare('UPDATE users SET status = ? WHERE id = ?')->execute([$status, $uid]);
     json_ok();
+}
+
+function updateRmsUrl(): never {
+    global $schoolId, $role;
+    if ($role !== 'schooladmin') json_err('Forbidden', 403);
+
+    $url = trim($_POST['rms_base_url'] ?? '');
+    if ($url !== '') {
+        if (!preg_match('~^https?://~i', $url)) json_err('URL ต้องขึ้นต้นด้วย http:// หรือ https://');
+        $url = rtrim($url, '/');
+        if (mb_strlen($url) > 300) json_err('URL ยาวเกินไป');
+    }
+    db()->prepare('UPDATE schools SET rms_base_url = ? WHERE id = ?')->execute([$url ?: null, $schoolId]);
+    $_SESSION['user']['school']['rms_base_url'] = $url ?: null;
+    json_ok(['rms_base_url' => $url]);
+}
+
+/** Fetch an external URL, returning the body or null on failure */
+function rms_fetch(string $url): ?string {
+    if (function_exists('curl_init')) {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 25,
+            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS      => 3,
+            CURLOPT_SSL_VERIFYPEER => false,
+        ]);
+        $res  = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        return ($res === false || $code >= 400) ? null : $res;
+    }
+    $ctx = stream_context_create(['http' => ['timeout' => 25], 'https' => ['timeout' => 25]]);
+    $res = @file_get_contents($url, false, $ctx);
+    return $res === false ? null : $res;
+}
+
+function importRmsUsers(): never {
+    global $schoolId, $role;
+    if ($role !== 'schooladmin') json_err('Forbidden', 403);
+
+    $stmt = db()->prepare('SELECT rms_base_url FROM schools WHERE id = ?');
+    $stmt->execute([$schoolId]);
+    $base = trim((string)$stmt->fetchColumn());
+    if ($base === '') json_err('ยังไม่ได้ตั้งค่า URL แหล่งข้อมูล RMS ในเมนูตั้งค่า');
+
+    $endpoint = rtrim($base, '/') . RMS_API_PATH;
+    $raw = rms_fetch($endpoint);
+    if ($raw === null) json_err('เชื่อมต่อแหล่งข้อมูล RMS ไม่สำเร็จ', 502);
+
+    $data = json_decode($raw, true);
+    $people = null;
+    if (is_array($data)) {
+        if (isset($data[0]) && is_array($data[0]))            $people = $data;
+        elseif (!empty($data['data'])   && is_array($data['data']))   $people = $data['data'];
+        elseif (!empty($data['people']) && is_array($data['people'])) $people = $data['people'];
+    }
+    if ($people === null) json_err('รูปแบบข้อมูลจาก RMS ไม่ถูกต้อง (คาดว่าเป็น JSON array ของผู้ใช้)');
+
+    // created_at is intentionally NOT in the UPDATE clause → preserved on re-import
+    $ins = db()->prepare('
+        INSERT INTO users (school_id, national_id, password_hash, full_name, email, role, status, must_change_pw)
+        VALUES (?, ?, ?, ?, ?, "user", "active", 0)
+        ON DUPLICATE KEY UPDATE
+          full_name     = VALUES(full_name),
+          email         = VALUES(email),
+          password_hash = VALUES(password_hash),
+          school_id     = VALUES(school_id)
+    ');
+
+    $new = 0; $upd = 0; $skipped = 0;
+    foreach ($people as $p) {
+        if (!is_array($p)) { $skipped++; continue; }
+        // Only import active people (people_exit == 0)
+        if ((string)($p['people_exit'] ?? '1') !== '0') { $skipped++; continue; }
+
+        $uid   = trim((string)($p['people_id'] ?? ''));
+        $fname = trim(trim((string)($p['people_name'] ?? '')) . ' ' . trim((string)($p['people_surname'] ?? '')));
+        $email = trim((string)($p['people_email'] ?? '')) ?: null;
+        $pass  = (string)($p['ath_pass'] ?? '');
+        if ($uid === '' || $fname === '') { $skipped++; continue; }
+
+        $hash = password_hash($pass !== '' ? $pass : gen_password(), PASSWORD_DEFAULT);
+        $ins->execute([$schoolId, $uid, $hash, $fname, $email]);
+        // MySQL rowCount: 1 = inserted, 2 = updated, 0 = unchanged
+        $ins->rowCount() === 1 ? $new++ : $upd++;
+    }
+
+    json_ok(['new' => $new, 'updated' => $upd, 'skipped' => $skipped, 'total' => count($people)]);
 }
 
 function addFiscalYear(): never {

@@ -30,6 +30,10 @@ define('APP_ROOT', dirname(__DIR__));
 define('UPLOAD_DIR', APP_ROOT . '/uploads');
 define('MAX_UPLOAD', 10 * 1024 * 1024); // 10 MB
 
+// RMS external user-import endpoint. The origin (e.g. http://rms.rvc.ac.th) is stored
+// per school in schools.rms_base_url; this path/query is fixed (hardcoded).
+define('RMS_API_PATH', '/api_connection.php?app_name=nutty&data=people');
+
 // Derive base URL from server vars
 (function () {
     // Detect HTTPS even behind a reverse proxy that terminates SSL,

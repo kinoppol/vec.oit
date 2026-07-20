@@ -54,6 +54,32 @@ $users = $stmt->fetchAll();
     </div>
   </div>
 
+  <?php if ($role === 'schooladmin'): ?>
+  <!-- ─── RMS IMPORT SETTINGS ─── -->
+  <div class="card rms-card">
+    <div class="card-header">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-3px;margin-right:6px"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9M8 17l4 4 4-4"/></svg>
+      ตั้งค่าการโอนข้อมูลผู้ใช้จากระบบ RMS
+    </div>
+    <div class="card-body">
+      <div class="alert alert-info" style="margin-bottom:16px">
+        ระบุ URL แหล่งข้อมูล (origin) ของระบบ RMS เช่น <code>http://rms.rvc.ac.th</code>
+        ระบบจะดึงข้อมูลผู้ใช้ที่ยังทำงานอยู่ (people_exit = 0) เข้าสู่สถานศึกษานี้อัตโนมัติ
+        โดยใช้ <code>people_id</code> เป็นชื่อผู้ใช้ และ <code>ath_pass</code> เป็นรหัสผ่าน
+      </div>
+      <form id="rmsUrlForm" class="rms-url-row">
+        <?= csrf_field() ?>
+        <input type="hidden" name="action" value="update_rms_url">
+        <input type="url" name="rms_base_url" id="rmsBaseUrl" class="form-input"
+               placeholder="http://rms.rvc.ac.th" value="<?= e($school['rms_base_url'] ?? '') ?>" maxlength="300">
+        <button type="submit" class="btn btn-ghost">บันทึก URL</button>
+        <button type="button" class="btn btn-primary" onclick="importRms()">โอนข้อมูลผู้ใช้</button>
+      </form>
+      <div class="form-hint" id="rmsEndpointHint"></div>
+    </div>
+  </div>
+  <?php endif; ?>
+
   <!-- ─── USERS TABLE ─── -->
   <div class="card users-card">
     <div class="card-header">
@@ -81,7 +107,10 @@ $users = $stmt->fetchAll();
         <tbody>
           <?php foreach ($users as $u): ?>
           <tr>
-            <td><?= e($u['full_name']) ?></td>
+            <td>
+              <?= e($u['full_name']) ?>
+              <?php if (!empty($u['email'])): ?><div class="user-email"><?= e($u['email']) ?></div><?php endif; ?>
+            </td>
             <td class="national-id"><?= e($u['national_id']) ?></td>
             <td><?= e(match($u['role']) {
               'schooladmin'  => 'ผู้ดูแลสถานศึกษา',
@@ -215,8 +244,42 @@ $users = $stmt->fetchAll();
 <?php endif; ?>
 
 <script>
+const RMS_API_PATH = '<?= RMS_API_PATH ?>';
+
 function openAddUser()  { document.getElementById('addUserModal').classList.remove('hidden'); }
 function closeAddUser() { document.getElementById('addUserModal').classList.add('hidden'); }
+
+// ── RMS import settings ──
+(function () {
+    const form = document.getElementById('rmsUrlForm');
+    if (!form) return;
+    const input = document.getElementById('rmsBaseUrl');
+    const hint  = document.getElementById('rmsEndpointHint');
+    const refresh = () => {
+        const base = input.value.trim().replace(/\/+$/, '');
+        hint.textContent = base ? 'ปลายทางที่จะเรียก: ' + base + RMS_API_PATH : '';
+    };
+    input.addEventListener('input', refresh); refresh();
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        fetch(APP_URL + '/api.php', { method:'POST', body: new FormData(this) })
+            .then(r => r.json())
+            .then(r => showToast(r.ok ? 'บันทึก URL แล้ว' : r.error, r.ok ? 'ok' : 'error'));
+    });
+})();
+
+async function importRms() {
+    if (!await uiConfirm('ดึงและโอนข้อมูลผู้ใช้จากระบบ RMS เข้าสถานศึกษานี้?\nผู้ใช้ที่มีอยู่แล้วจะถูกปรับปรุงข้อมูล (รหัสผ่านจาก RMS)',
+        { title:'โอนข้อมูลผู้ใช้จาก RMS', confirmLabel:'โอนข้อมูล' })) return;
+    showToast('กำลังดึงข้อมูลจาก RMS…');
+    apiPost({ action:'import_rms_users' }).then(r => {
+        if (r.ok) {
+            const d = r.data;
+            showToast('โอนสำเร็จ: เพิ่มใหม่ ' + d.new + ', ปรับปรุง ' + d.updated + ', ข้าม ' + d.skipped + ' รายการ');
+            setTimeout(() => location.reload(), 1200);
+        } else { showToast(r.error, 'error'); }
+    });
+}
 
 function openEditSlug() { document.getElementById('slugModal')?.classList.remove('hidden'); }
 (function () {
