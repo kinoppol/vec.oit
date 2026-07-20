@@ -129,10 +129,30 @@ foreach ($tree as $s) { $secTitle[$s['code']] = $s['title']; }
       </svg>
     </div>
     <div class="pub-stat-row">
-      <div class="pub-stat"><span class="pub-stat-n"><?= $stats['total'] ?></span><span class="pub-stat-l">ตัวชี้วัด</span></div>
-      <div class="pub-stat pub-stat-done"><span class="pub-stat-n"><?= $stats['done'] ?></span><span class="pub-stat-l">เผยแพร่แล้ว</span></div>
-      <div class="pub-stat pub-stat-prog"><span class="pub-stat-n"><?= $stats['prog'] ?></span><span class="pub-stat-l">ดำเนินการ</span></div>
-      <div class="pub-stat"><span class="pub-stat-n"><?= $stats['ev_cnt'] ?></span><span class="pub-stat-l">หลักฐาน</span></div>
+      <div class="pub-stat">
+        <div class="pub-stat-ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
+        </div>
+        <div><span class="pub-stat-n"><?= $stats['total'] ?></span><span class="pub-stat-l">ตัวชี้วัด</span></div>
+      </div>
+      <div class="pub-stat pub-stat-done">
+        <div class="pub-stat-ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <div><span class="pub-stat-n"><?= $stats['done'] ?></span><span class="pub-stat-l">เผยแพร่แล้ว</span></div>
+      </div>
+      <div class="pub-stat pub-stat-prog">
+        <div class="pub-stat-ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>
+        </div>
+        <div><span class="pub-stat-n"><?= $stats['prog'] ?></span><span class="pub-stat-l">ดำเนินการ</span></div>
+      </div>
+      <div class="pub-stat">
+        <div class="pub-stat-ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+        </div>
+        <div><span class="pub-stat-n"><?= $stats['ev_cnt'] ?></span><span class="pub-stat-l">หลักฐาน</span></div>
+      </div>
     </div>
   </div>
 
