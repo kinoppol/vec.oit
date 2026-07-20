@@ -169,14 +169,53 @@ function updateStatus(indId, status) {
 function openEvModal(indId) {
     const modal = document.getElementById('evModal');
     if (!modal) return;
-    document.getElementById('evIndId').value = indId;
     document.getElementById('evForm')?.reset();
+    document.getElementById('evAction').value = 'add_evidence';
+    document.getElementById('evEvId').value   = '';
+    document.getElementById('evIndId').value  = indId;
+    document.getElementById('evModalTitle').textContent = 'เพิ่มหลักฐาน';
+    document.getElementById('evSubmitBtn').textContent  = 'บันทึกหลักฐาน';
+    document.getElementById('evCurrentFile').classList.add('hidden');
+    setLinkType('url');
     modal.classList.remove('hidden');
-    toggleLinkType('url');
+}
+
+// Edit an existing evidence — prefill the same modal
+function openEvEdit(data) {
+    const modal = document.getElementById('evModal');
+    if (!modal) return;
+    document.getElementById('evForm')?.reset();
+    document.getElementById('evAction').value = 'edit_evidence';
+    document.getElementById('evEvId').value   = data.id;
+    document.getElementById('evIndId').value  = data.ind_id || '';
+    document.getElementById('evName').value   = data.title || '';
+    document.getElementById('evNote').value   = data.note || '';
+    document.getElementById('evModalTitle').textContent = 'แก้ไขหลักฐาน';
+    document.getElementById('evSubmitBtn').textContent  = 'บันทึกการแก้ไข';
+
+    const curFile = document.getElementById('evCurrentFile');
+    if (data.file_path) {
+        setLinkType('file');
+        document.getElementById('evUrl').value = '';
+        curFile.textContent = 'ไฟล์ปัจจุบัน: ' + data.file_path + ' — เลือกไฟล์ใหม่เพื่อแทนที่ (เว้นว่างเพื่อคงไฟล์เดิม)';
+        curFile.classList.remove('hidden');
+    } else {
+        setLinkType('url');
+        document.getElementById('evUrl').value = data.url || '';
+        curFile.classList.add('hidden');
+    }
+    modal.classList.remove('hidden');
 }
 
 function closeEvModal() {
     document.getElementById('evModal')?.classList.add('hidden');
+}
+
+// Switch link-type tab both visually and check the matching radio
+function setLinkType(type) {
+    const radio = document.querySelector('[name="link_type"][value="' + type + '"]');
+    if (radio) radio.checked = true;
+    toggleLinkType(type);
 }
 
 function toggleLinkType(type) {
@@ -204,8 +243,9 @@ if (evForm) {
             const res  = await fetch(APP_URL + '/api.php', { method: 'POST', body: fd });
             const json = await res.json();
             if (json.ok) {
+                const isEdit = document.getElementById('evAction').value === 'edit_evidence';
                 closeEvModal();
-                showToast('เพิ่มหลักฐานเรียบร้อย');
+                showToast(isEdit ? 'บันทึกการแก้ไขเรียบร้อย' : 'เพิ่มหลักฐานเรียบร้อย');
                 // Reload detail panel
                 if (window.selectedIndicatorId) loadIndicator(window.selectedIndicatorId);
             } else { showToast(json.error, 'error'); }

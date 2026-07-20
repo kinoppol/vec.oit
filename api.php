@@ -109,6 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 match ($action) {
     'update_status'    => updateStatus(),
     'add_evidence'     => addEvidence(),
+    'edit_evidence'    => editEvidence(),
     'delete_evidence'  => deleteEvidence(),
     'upload_emblem'    => uploadEmblem(),
     'add_user'         => addUser(),
@@ -174,6 +175,59 @@ function addEvidence(): never {
     ')->execute([$schoolId, $indId, $userId, $linkType === 'file' ? 'file' : 'link', $name, $url ?: null, $filePath, $note ?: null]);
 
     json_ok(['id' => db()->lastInsertId()]);
+}
+
+function editEvidence(): never {
+    global $schoolId, $userId, $role;
+    if (!in_array($role, ['user','schooladmin'])) json_err('Forbidden', 403);
+
+    $evId     = (int)($_POST['evidence_id'] ?? 0);
+    $name     = trim($_POST['name'] ?? '');
+    $url      = trim($_POST['url'] ?? '');
+    $note     = trim($_POST['note'] ?? '');
+    $linkType = $_POST['link_type'] ?? 'url';
+    if (!$evId || !$name) json_err('กรุณากรอกชื่อหลักฐาน');
+
+    // Ownership check (same rule as delete)
+    $stmt = db()->prepare('SELECT * FROM evidences WHERE id = ? AND school_id = ?');
+    $stmt->execute([$evId, $schoolId]);
+    $ev = $stmt->fetch();
+    if (!$ev) json_err('Not found', 404);
+    if ((int)$ev['created_by'] !== $userId && $role !== 'schooladmin') json_err('Forbidden', 403);
+
+    $filePath = $ev['file_path'];
+    $type     = 'link';
+
+    if ($linkType === 'file') {
+        // Replace file only if a new one is uploaded; otherwise keep the existing file
+        if (!empty($_FILES['upload']['tmp_name'])) {
+            $file = $_FILES['upload'];
+            if ($file['size'] > MAX_UPLOAD) json_err('ไฟล์ใหญ่เกิน 10 MB');
+            $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+            $allowed = ['pdf','doc','docx','xls','xlsx','jpg','jpeg','png','gif','webp'];
+            if (!in_array($ext, $allowed)) json_err('ประเภทไฟล์ไม่อนุญาต');
+            $newName = bin2hex(random_bytes(16)) . '.' . $ext;
+            if (!move_uploaded_file($file['tmp_name'], UPLOAD_DIR . '/' . $newName)) json_err('อัปโหลดไม่สำเร็จ');
+            if ($ev['file_path'] && file_exists(UPLOAD_DIR . '/' . $ev['file_path'])) {
+                unlink(UPLOAD_DIR . '/' . $ev['file_path']);
+            }
+            $filePath = $newName;
+        }
+        if (!$filePath) json_err('กรุณาเลือกไฟล์');
+        $url  = null;
+        $type = 'file';
+    } else {
+        // URL mode — drop any previously attached file
+        if ($ev['file_path'] && file_exists(UPLOAD_DIR . '/' . $ev['file_path'])) {
+            unlink(UPLOAD_DIR . '/' . $ev['file_path']);
+        }
+        $filePath = null;
+        $type     = 'link';
+    }
+
+    db()->prepare('UPDATE evidences SET type = ?, title = ?, url = ?, file_path = ?, note = ? WHERE id = ?')
+        ->execute([$type, $name, $url ?: null, $filePath, $note ?: null, $evId]);
+    json_ok();
 }
 
 function deleteEvidence(): never {

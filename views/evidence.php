@@ -69,18 +69,19 @@ $selectedId = isset($_GET['indicator']) ? (int)$_GET['indicator'] : 0;
 <div class="modal-backdrop hidden" id="evModal">
   <div class="modal" role="dialog" aria-modal="true">
     <div class="modal-header">
-      <h2 class="modal-title">เพิ่มหลักฐาน</h2>
+      <h2 class="modal-title" id="evModalTitle">เพิ่มหลักฐาน</h2>
       <button class="modal-close" onclick="closeEvModal()" aria-label="ปิด">✕</button>
     </div>
     <form id="evForm" class="modal-body" enctype="multipart/form-data">
       <?= csrf_field() ?>
-      <input type="hidden" name="action" value="add_evidence">
+      <input type="hidden" name="action" id="evAction" value="add_evidence">
       <input type="hidden" name="indicator_id" id="evIndId">
+      <input type="hidden" name="evidence_id" id="evEvId">
       <input type="hidden" name="school_id" value="<?= $schoolId ?>">
       <input type="hidden" name="year_code" value="<?= e($yearCode) ?>">
       <div class="form-group">
         <label class="form-label">ชื่อหลักฐาน <span class="req">*</span></label>
-        <input type="text" name="name" class="form-input" required maxlength="255" placeholder="เช่น ประกาศแต่งตั้งคณะทำงาน">
+        <input type="text" name="name" id="evName" class="form-input" required maxlength="255" placeholder="เช่น ประกาศแต่งตั้งคณะทำงาน">
       </div>
       <div class="form-group">
         <label class="form-label">ประเภทลิงก์</label>
@@ -91,15 +92,16 @@ $selectedId = isset($_GET['indicator']) ? (int)$_GET['indicator'] : 0;
       </div>
       <div class="form-group" id="urlGroup">
         <label class="form-label">URL ลิงก์</label>
-        <input type="url" name="url" class="form-input" placeholder="https://…" maxlength="2000">
+        <input type="url" name="url" id="evUrl" class="form-input" placeholder="https://…" maxlength="2000">
       </div>
       <div class="form-group hidden" id="fileGroup">
         <label class="form-label">อัปโหลดไฟล์ (ไม่เกิน 10 MB)</label>
         <input type="file" name="upload" class="form-input form-file" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif">
+        <div class="form-hint hidden" id="evCurrentFile"></div>
       </div>
       <div class="form-group">
         <label class="form-label">หมายเหตุ</label>
-        <textarea name="note" class="form-input form-textarea" rows="3" placeholder="คำอธิบายเพิ่มเติม (ไม่จำเป็น)" maxlength="1000"></textarea>
+        <textarea name="note" id="evNote" class="form-input form-textarea" rows="3" placeholder="คำอธิบายเพิ่มเติม (ไม่จำเป็น)" maxlength="1000"></textarea>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-ghost" onclick="closeEvModal()">ยกเลิก</button>
