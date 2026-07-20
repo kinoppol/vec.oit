@@ -491,10 +491,59 @@ function rms_fetch(string $url, ?string &$err = null): ?string {
     return $res;
 }
 
+function rms_cache_file(int $schoolId, string $token): string {
+    return sys_get_temp_dir() . '/oit_rms_' . $schoolId . '_' . $token . '.json';
+}
+
+/**
+ * Two-phase import to stay under gateway/FPM timeouts with many users:
+ *   phase=fetch  → download RMS data, filter people_exit==0, cache; return {token,total,skipped}
+ *   phase=batch  → hash+upsert a small slice from the cache; return progress
+ */
 function importRmsUsers(): never {
     global $schoolId, $role;
     if ($role !== 'schooladmin') json_err('Forbidden', 403);
+    @set_time_limit(120);
 
+    $phase = $_POST['phase'] ?? 'fetch';
+
+    if ($phase === 'batch') {
+        $token  = preg_replace('/[^a-f0-9]/', '', (string)($_POST['token'] ?? ''));
+        $offset = max(0, (int)($_POST['offset'] ?? 0));
+        $file   = rms_cache_file($schoolId, $token);
+        if ($token === '' || !is_file($file)) json_err('เซสชันการโอนหมดอายุ กรุณาเริ่มใหม่');
+
+        $items = json_decode((string)file_get_contents($file), true) ?: [];
+        $total = count($items);
+        $slice = array_slice($items, $offset, 20); // 20 bcrypt hashes/request ≈ a few seconds
+
+        try {
+            $ins = db()->prepare('
+                INSERT INTO users (school_id, national_id, password_hash, full_name, email, role, status, must_change_pw)
+                VALUES (?, ?, ?, ?, ?, "user", "active", 0)
+                ON DUPLICATE KEY UPDATE
+                  full_name = VALUES(full_name), email = VALUES(email),
+                  password_hash = VALUES(password_hash), school_id = VALUES(school_id)
+            ');
+        } catch (PDOException $e) {
+            if (($e->errorInfo[1] ?? 0) === 1054) json_err('ฐานข้อมูลยังไม่มีคอลัมน์ users.email — กรุณารัน migrate.php ก่อน', 500);
+            throw $e;
+        }
+
+        $new = 0; $upd = 0;
+        foreach ($slice as $it) {
+            $pass = (string)($it['pass'] ?? '');
+            $hash = password_hash($pass !== '' ? $pass : gen_password(), PASSWORD_DEFAULT);
+            $ins->execute([$schoolId, $it['nid'], $hash, $it['name'], $it['email'] ?: null]);
+            $ins->rowCount() === 1 ? $new++ : $upd++;
+        }
+        $next = $offset + count($slice);
+        $done = $next >= $total;
+        if ($done) @unlink($file);
+        json_ok(['new' => $new, 'updated' => $upd, 'next' => $next, 'total' => $total, 'done' => $done]);
+    }
+
+    // ── phase=fetch ──
     try {
         $stmt = db()->prepare('SELECT rms_base_url FROM schools WHERE id = ?');
         $stmt->execute([$schoolId]);
@@ -504,8 +553,6 @@ function importRmsUsers(): never {
         throw $e;
     }
     if ($base === '') json_err('ยังไม่ได้ตั้งค่า URL แหล่งข้อมูล RMS ในเมนูตั้งค่า');
-
-    @set_time_limit(180); // hashing many users can take a while
 
     $endpoint = rtrim($base, '/') . RMS_API_PATH;
     $raw = rms_fetch($endpoint, $fetchErr);
@@ -523,41 +570,26 @@ function importRmsUsers(): never {
         json_err('รูปแบบข้อมูลจาก RMS ไม่ถูกต้อง (ต้องเป็น JSON array ของผู้ใช้) — ได้รับ: ' . $peek);
     }
 
-    // created_at is intentionally NOT in the UPDATE clause → preserved on re-import
-    try {
-        $ins = db()->prepare('
-            INSERT INTO users (school_id, national_id, password_hash, full_name, email, role, status, must_change_pw)
-            VALUES (?, ?, ?, ?, ?, "user", "active", 0)
-            ON DUPLICATE KEY UPDATE
-              full_name     = VALUES(full_name),
-              email         = VALUES(email),
-              password_hash = VALUES(password_hash),
-              school_id     = VALUES(school_id)
-        ');
-    } catch (PDOException $e) {
-        if (($e->errorInfo[1] ?? 0) === 1054) json_err('ฐานข้อมูลยังไม่มีคอลัมน์ users.email — กรุณารัน migrate.php ก่อน', 500);
-        throw $e;
-    }
-
-    $new = 0; $upd = 0; $skipped = 0;
+    // Filter to importable people (people_exit == 0) and keep only mapped fields
+    $items = []; $skipped = 0;
     foreach ($people as $p) {
-        if (!is_array($p)) { $skipped++; continue; }
-        // Only import active people (people_exit == 0)
-        if ((string)($p['people_exit'] ?? '1') !== '0') { $skipped++; continue; }
-
+        if (!is_array($p) || (string)($p['people_exit'] ?? '1') !== '0') { $skipped++; continue; }
         $uid   = trim((string)($p['people_id'] ?? ''));
         $fname = trim(trim((string)($p['people_name'] ?? '')) . ' ' . trim((string)($p['people_surname'] ?? '')));
-        $email = trim((string)($p['people_email'] ?? '')) ?: null;
-        $pass  = (string)($p['ath_pass'] ?? '');
         if ($uid === '' || $fname === '') { $skipped++; continue; }
-
-        $hash = password_hash($pass !== '' ? $pass : gen_password(), PASSWORD_DEFAULT);
-        $ins->execute([$schoolId, $uid, $hash, $fname, $email]);
-        // MySQL rowCount: 1 = inserted, 2 = updated, 0 = unchanged
-        $ins->rowCount() === 1 ? $new++ : $upd++;
+        $items[] = [
+            'nid'   => $uid,
+            'name'  => $fname,
+            'email' => trim((string)($p['people_email'] ?? '')),
+            'pass'  => (string)($p['ath_pass'] ?? ''),
+        ];
     }
 
-    json_ok(['new' => $new, 'updated' => $upd, 'skipped' => $skipped, 'total' => count($people)]);
+    $token = bin2hex(random_bytes(8));
+    if (@file_put_contents(rms_cache_file($schoolId, $token), json_encode($items)) === false) {
+        json_err('ไม่สามารถเขียนไฟล์ชั่วคราวสำหรับการโอนได้', 500);
+    }
+    json_ok(['token' => $token, 'total' => count($items), 'skipped' => $skipped]);
 }
 
 function addFiscalYear(): never {

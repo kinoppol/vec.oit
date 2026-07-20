@@ -281,16 +281,33 @@ async function importRms() {
     if (!url) { showToast('กรุณาระบุ URL แหล่งข้อมูล RMS ก่อน', 'error'); return; }
     if (!await uiConfirm('ดึงและโอนข้อมูลผู้ใช้จากระบบ RMS เข้าสถานศึกษานี้?\nURL นี้จะถูกบันทึกไว้ใช้ในการโอนครั้งต่อไปด้วย\nผู้ใช้ที่มีอยู่แล้วจะถูกปรับปรุงข้อมูล (รหัสผ่านจาก RMS)',
         { title:'โอนข้อมูลผู้ใช้จาก RMS', confirmLabel:'โอนข้อมูล' })) return;
-    showToast('กำลังดึงข้อมูลจาก RMS…');
-    const saved = await saveRmsUrl();
-    if (!saved.ok) { showToast(saved.error, 'error'); return; }
-    apiPost({ action:'import_rms_users' }).then(r => {
-        if (r.ok) {
-            const d = r.data;
-            showToast('โอนสำเร็จ: เพิ่มใหม่ ' + d.new + ', ปรับปรุง ' + d.updated + ', ข้าม ' + d.skipped + ' รายการ');
-            setTimeout(() => location.reload(), 1200);
-        } else { showToast(r.error, 'error'); }
-    });
+
+    const btn = document.querySelector('.rms-url-row .btn-primary');
+    if (btn) btn.disabled = true;
+    try {
+        const saved = await saveRmsUrl();
+        if (!saved.ok) { showToast(saved.error, 'error'); return; }
+
+        showToast('กำลังดึงข้อมูลจาก RMS…');
+        const f = await apiPost({ action:'import_rms_users', phase:'fetch' });
+        if (!f.ok) { showToast(f.error, 'error'); return; }
+
+        const total = f.data.total, token = f.data.token;
+        if (total === 0) { showToast('ไม่พบผู้ใช้ที่ต้องโอน (people_exit=0) · ข้าม ' + f.data.skipped + ' รายการ'); return; }
+
+        let offset = 0, newN = 0, updN = 0;
+        while (true) {
+            const b = await apiPost({ action:'import_rms_users', phase:'batch', token: token, offset: offset });
+            if (!b.ok) { showToast(b.error, 'error'); return; }
+            newN += b.data.new; updN += b.data.updated; offset = b.data.next;
+            showToast('กำลังโอน… ' + offset + '/' + total);
+            if (b.data.done) break;
+        }
+        showToast('โอนสำเร็จ: เพิ่มใหม่ ' + newN + ', ปรับปรุง ' + updN + ' (ข้าม ' + f.data.skipped + ')');
+        setTimeout(() => location.reload(), 1400);
+    } finally {
+        if (btn) btn.disabled = false;
+    }
 }
 
 function openEditSlug() { document.getElementById('slugModal')?.classList.remove('hidden'); }
