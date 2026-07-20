@@ -73,9 +73,11 @@ $users = $stmt->fetchAll();
         <input type="url" name="rms_base_url" id="rmsBaseUrl" class="form-input"
                placeholder="http://rms..." value="<?= e($school['rms_base_url'] ?? '') ?>" maxlength="300">
         <button type="submit" class="btn btn-ghost">บันทึก URL</button>
+        <button type="button" class="btn btn-ghost" onclick="pingRms()">ทดสอบการเชื่อมต่อ</button>
         <button type="button" class="btn btn-primary" onclick="importRms()">โอนข้อมูลผู้ใช้</button>
       </form>
       <div class="form-hint" id="rmsEndpointHint"></div>
+      <div class="form-hint" id="rmsPingResult" style="white-space:pre-wrap"></div>
     </div>
   </div>
   <?php endif; ?>
@@ -274,6 +276,20 @@ function closeAddUser() { document.getElementById('addUserModal').classList.add(
 // Persist the current URL, then run the import (so typing + โอน works without a separate save)
 function saveRmsUrl() {
     return apiPost({ action:'update_rms_url', rms_base_url: document.getElementById('rmsBaseUrl').value.trim() });
+}
+
+async function pingRms() {
+    const url = document.getElementById('rmsBaseUrl').value.trim();
+    if (!url) { showToast('กรุณาระบุ URL ก่อน', 'error'); return; }
+    const out = document.getElementById('rmsPingResult');
+    out.textContent = 'กำลังทดสอบ…';
+    const r = await apiPost({ action:'rms_ping', rms_base_url: url });
+    if (!r.ok) { out.textContent = '❌ ' + r.error; return; }
+    const d = r.data;
+    if (!d.ok) { out.textContent = '❌ เชื่อมต่อไม่สำเร็จ (' + d.ms + 'ms)\n' + d.endpoint + '\n' + d.error; return; }
+    out.textContent = '✅ เชื่อมต่อสำเร็จ (' + d.ms + 'ms, ' + d.bytes + ' bytes)\n'
+        + (d.is_json ? ('เป็น JSON' + (d.count !== null ? ' · พบ ' + d.count + ' รายการ' : ' · ไม่พบ array ผู้ใช้'))
+                     : ('⚠ ไม่ใช่ JSON — ได้รับ: ' + d.peek));
 }
 
 async function importRms() {

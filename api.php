@@ -129,6 +129,7 @@ match ($action) {
     'upload_emblem'    => uploadEmblem(),
     'add_user'         => addUser(),
     'update_rms_url'   => updateRmsUrl(),
+    'rms_ping'         => rmsPing(),
     'import_rms_users' => importRmsUsers(),
     'reset_password'   => resetPassword(),
     'toggle_user'      => toggleUser(),
@@ -465,14 +466,15 @@ function updateRmsUrl(): never {
 }
 
 /** Fetch an external URL. Returns the body, or null on failure with $err set. */
-function rms_fetch(string $url, ?string &$err = null): ?string {
+function rms_fetch(string $url, ?string &$err = null, int $timeout = 20): ?string {
     $err = null;
     if (function_exists('curl_init')) {
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => 20,
-            CURLOPT_CONNECTTIMEOUT => 8,
+            CURLOPT_TIMEOUT        => $timeout,
+            CURLOPT_CONNECTTIMEOUT => min(8, $timeout),
+            CURLOPT_NOSIGNAL       => true,   // required so timeouts fire under php-fpm
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_MAXREDIRS      => 3,
             CURLOPT_SSL_VERIFYPEER => false,
@@ -485,10 +487,53 @@ function rms_fetch(string $url, ?string &$err = null): ?string {
         curl_close($ch);
         return $err === null ? $res : null;
     }
-    $ctx = stream_context_create(['http' => ['timeout' => 20], 'https' => ['timeout' => 20]]);
+    $ctx = stream_context_create([
+        'http'  => ['timeout' => $timeout],
+        'https' => ['timeout' => $timeout],
+    ]);
     $res = @file_get_contents($url, false, $ctx);
     if ($res === false) { $err = 'เชื่อมต่อแหล่งข้อมูลไม่สำเร็จ (file_get_contents)'; return null; }
     return $res;
+}
+
+/** Diagnostic: quickly probe the RMS endpoint and report what came back */
+function rmsPing(): never {
+    global $schoolId, $role;
+    if ($role !== 'schooladmin') json_err('Forbidden', 403);
+    @set_time_limit(30);
+
+    $base = trim((string)($_POST['rms_base_url'] ?? ''));
+    if ($base === '') {
+        $stmt = db()->prepare('SELECT rms_base_url FROM schools WHERE id = ?');
+        $stmt->execute([$schoolId]);
+        $base = trim((string)$stmt->fetchColumn());
+    }
+    $base = rtrim($base, '/');
+    if ($base === '') json_err('ยังไม่ได้ระบุ URL แหล่งข้อมูล RMS');
+
+    $endpoint = $base . RMS_API_PATH;
+    $t0 = microtime(true);
+    $raw = rms_fetch($endpoint, $err, 8); // short probe
+    $ms  = round((microtime(true) - $t0) * 1000);
+
+    if ($raw === null) json_ok(['ok' => false, 'endpoint' => $endpoint, 'ms' => $ms, 'error' => $err]);
+
+    $data = json_decode($raw, true);
+    $count = null;
+    if (is_array($data)) {
+        if (isset($data[0]))            $count = count($data);
+        elseif (isset($data['data']))   $count = is_array($data['data'])   ? count($data['data'])   : null;
+        elseif (isset($data['people'])) $count = is_array($data['people']) ? count($data['people']) : null;
+    }
+    json_ok([
+        'ok'       => true,
+        'endpoint' => $endpoint,
+        'ms'       => $ms,
+        'bytes'    => strlen($raw),
+        'is_json'  => $data !== null,
+        'count'    => $count,
+        'peek'     => mb_substr(trim(strip_tags($raw)), 0, 160),
+    ]);
 }
 
 function rms_cache_file(int $schoolId, string $token): string {
