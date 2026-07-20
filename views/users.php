@@ -41,9 +41,10 @@ $users = $stmt->fetchAll();
         </thead>
         <tbody>
           <?php foreach ($users as $u): ?>
-          <tr class="user-row" data-search="<?= e(mb_strtolower(($u['full_name'] ?? '') . ' ' . ($u['national_id'] ?? '') . ' ' . ($u['email'] ?? ''))) ?>">
+          <tr class="user-row" data-search="<?= e(mb_strtolower(($u['full_name'] ?? '') . ' ' . ($u['nickname'] ?? '') . ' ' . ($u['national_id'] ?? '') . ' ' . ($u['email'] ?? ''))) ?>">
             <td>
               <?= e($u['full_name']) ?>
+              <?php if (!empty($u['nickname'])): ?><span class="user-nick">(<?= e($u['nickname']) ?>)</span><?php endif; ?>
               <?php if (!empty($u['email'])): ?><div class="user-email"><?= e($u['email']) ?></div><?php endif; ?>
             </td>
             <td class="national-id"><?= e($u['national_id']) ?></td>

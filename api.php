@@ -577,10 +577,11 @@ function importRmsUsers(): never {
             // Protect admin accounts: never overwrite an existing schooladmin/centraladmin
             // (their password, name, email, school stay intact — only role="user" rows are updated)
             $ins = db()->prepare('
-                INSERT INTO users (school_id, national_id, password_hash, full_name, email, role, status, must_change_pw)
-                VALUES (?, ?, ?, ?, ?, "user", "active", 0)
+                INSERT INTO users (school_id, national_id, password_hash, full_name, nickname, email, role, status, must_change_pw)
+                VALUES (?, ?, ?, ?, ?, ?, "user", "active", 0)
                 ON DUPLICATE KEY UPDATE
                   full_name     = IF(role = "user", VALUES(full_name), full_name),
+                  nickname      = IF(role = "user", VALUES(nickname), nickname),
                   email         = IF(role = "user", VALUES(email), email),
                   password_hash = IF(role = "user", VALUES(password_hash), password_hash),
                   school_id     = IF(role = "user", VALUES(school_id), school_id)
@@ -594,7 +595,7 @@ function importRmsUsers(): never {
         foreach ($slice as $it) {
             $pass = (string)($it['pass'] ?? '');
             $hash = password_hash($pass !== '' ? $pass : gen_password(), PASSWORD_DEFAULT);
-            $ins->execute([$schoolId, $it['nid'], $hash, $it['name'], $it['email'] ?: null]);
+            $ins->execute([$schoolId, $it['nid'], $hash, $it['name'], ($it['nick'] ?? '') ?: null, $it['email'] ?: null]);
             $ins->rowCount() === 1 ? $new++ : $upd++;
         }
         $next = $offset + count($slice);
@@ -637,9 +638,15 @@ function importRmsUsers(): never {
         $uid   = trim((string)($p['people_id'] ?? ''));
         $fname = trim(trim((string)($p['people_name'] ?? '')) . ' ' . trim((string)($p['people_surname'] ?? '')));
         if ($uid === '' || $fname === '') { $skipped++; continue; }
+        // Nickname — accept a few likely RMS field names
+        $nick = '';
+        foreach (['people_nickname', 'people_nick', 'nickname', 'people_nickname_th'] as $k) {
+            if (!empty($p[$k])) { $nick = trim((string)$p[$k]); break; }
+        }
         $items[] = [
             'nid'   => $uid,
             'name'  => $fname,
+            'nick'  => $nick,
             'email' => trim((string)($p['people_email'] ?? '')),
             'pass'  => (string)($p['ath_pass'] ?? ''),
         ];
