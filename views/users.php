@@ -85,11 +85,15 @@ $users = $stmt->fetchAll();
   <!-- ─── USERS TABLE ─── -->
   <div class="card users-card">
     <div class="card-header">
-      ผู้ใช้งาน (<?= count($users) ?> คน)
-      <button class="btn btn-primary btn-sm" onclick="openAddUser()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
-        เพิ่มผู้ใช้
-      </button>
+      <span>ผู้ใช้งาน (<?= count($users) ?> คน)</span>
+      <div class="users-toolbar">
+        <input type="search" id="userSearch" class="form-input users-search"
+               placeholder="ค้นหาชื่อ / เลขบัตร / อีเมล…" autocomplete="off">
+        <button class="btn btn-primary btn-sm" onclick="openAddUser()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+          เพิ่มผู้ใช้
+        </button>
+      </div>
     </div>
     <?php if ($msg): ?>
     <div class="flash-msg flash-<?= e($msg['type']) ?>"><?= e($msg['text']) ?></div>
@@ -108,7 +112,7 @@ $users = $stmt->fetchAll();
         </thead>
         <tbody>
           <?php foreach ($users as $u): ?>
-          <tr>
+          <tr class="user-row" data-search="<?= e(mb_strtolower(($u['full_name'] ?? '') . ' ' . ($u['national_id'] ?? '') . ' ' . ($u['email'] ?? ''))) ?>">
             <td>
               <?= e($u['full_name']) ?>
               <?php if (!empty($u['email'])): ?><div class="user-email"><?= e($u['email']) ?></div><?php endif; ?>
@@ -156,7 +160,9 @@ $users = $stmt->fetchAll();
           <?php endforeach; ?>
         </tbody>
       </table>
+      <div id="userNoResult" class="users-empty hidden">ไม่พบผู้ใช้ที่ตรงกับคำค้นหา</div>
     </div>
+    <div class="users-pager" id="userPager"></div>
   </div>
 </div>
 
@@ -247,6 +253,70 @@ $users = $stmt->fetchAll();
 
 <script>
 const RMS_API_PATH = '<?= RMS_API_PATH ?>';
+
+// ── Users search + pagination (client-side) ──
+(function () {
+    const PER_PAGE = 20;
+    const rows   = Array.prototype.slice.call(document.querySelectorAll('.user-row'));
+    const search = document.getElementById('userSearch');
+    const pager  = document.getElementById('userPager');
+    const empty  = document.getElementById('userNoResult');
+    if (!rows.length || !search) return;
+
+    let filtered = rows;
+    let page = 1;
+
+    function render() {
+        const pages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+        if (page > pages) page = pages;
+        const start = (page - 1) * PER_PAGE, end = start + PER_PAGE;
+        rows.forEach(r => { r.style.display = 'none'; });
+        filtered.slice(start, end).forEach(r => { r.style.display = ''; });
+        empty.classList.toggle('hidden', filtered.length !== 0);
+
+        // pager
+        pager.innerHTML = '';
+        if (filtered.length > PER_PAGE) {
+            const info = document.createElement('span');
+            info.className = 'users-pager-info';
+            info.textContent = (start + 1) + '–' + Math.min(end, filtered.length) + ' จาก ' + filtered.length + ' คน';
+            pager.appendChild(info);
+
+            const nav = document.createElement('div');
+            nav.className = 'users-pager-nav';
+            const mk = (label, target, disabled, active) => {
+                const b = document.createElement('button');
+                b.className = 'pager-btn' + (active ? ' active' : '');
+                b.textContent = label; b.disabled = !!disabled;
+                if (!disabled && !active) b.onclick = () => { page = target; render(); };
+                return b;
+            };
+            nav.appendChild(mk('‹', page - 1, page === 1));
+            // windowed page numbers
+            const win = [];
+            for (let p = 1; p <= pages; p++) {
+                if (p === 1 || p === pages || Math.abs(p - page) <= 1) win.push(p);
+                else if (win[win.length - 1] !== '…') win.push('…');
+            }
+            win.forEach(p => nav.appendChild(p === '…'
+                ? Object.assign(document.createElement('span'), { className: 'pager-ellipsis', textContent: '…' })
+                : mk(String(p), p, false, p === page)));
+            nav.appendChild(mk('›', page + 1, page === pages));
+            pager.appendChild(nav);
+        }
+    }
+
+    let t;
+    search.addEventListener('input', function () {
+        clearTimeout(t);
+        t = setTimeout(() => {
+            const q = this.value.toLowerCase().trim();
+            filtered = q ? rows.filter(r => (r.dataset.search || '').indexOf(q) !== -1) : rows;
+            page = 1; render();
+        }, 150);
+    });
+    render();
+})();
 
 function openAddUser()  { document.getElementById('addUserModal').classList.remove('hidden'); }
 function closeAddUser() { document.getElementById('addUserModal').classList.add('hidden'); }
