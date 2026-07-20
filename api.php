@@ -40,6 +40,60 @@ if ($action === 'indicator_detail') {
     json_ok(['html' => $html]);
 }
 
+// export_indicators — download the full indicator tree of a fiscal year as JSON
+if ($action === 'export_indicators') {
+    $authUser = require_auth();
+    if ($authUser['role'] !== 'centraladmin') { http_response_code(403); exit('Forbidden'); }
+    $yc = trim($_GET['fy'] ?? '');
+
+    $fyStmt = db()->prepare('SELECT * FROM fiscal_years WHERE year_code = ?');
+    $fyStmt->execute([$yc]);
+    $fy = $fyStmt->fetch();
+    if (!$fy) { http_response_code(404); exit('ไม่พบปีงบประมาณ'); }
+
+    $rows = db()->prepare('
+        SELECT sec.code AS sec_code, sec.title AS sec_title, sec.sort_order AS sec_so,
+               sub.code AS sub_code, sub.title AS sub_title, sub.sort_order AS sub_so,
+               ind.code AS ind_code, ind.title AS ind_title, ind.criteria, ind.sort_order AS ind_so
+        FROM indicator_sections sec
+        JOIN indicator_subsections sub ON sub.section_id = sec.id
+        JOIN indicators ind ON ind.subsection_id = sub.id
+        WHERE sec.fiscal_year_id = ?
+        ORDER BY sec.sort_order, sub.sort_order, ind.sort_order
+    ');
+    $rows->execute([$fy['id']]);
+
+    $tree = [];
+    foreach ($rows->fetchAll() as $r) {
+        $sc = $r['sec_code']; $uc = $r['sub_code'];
+        $tree[$sc] ??= ['code' => $r['sec_code'], 'title' => $r['sec_title'], 'sort_order' => (int)$r['sec_so'], 'subsections' => []];
+        $tree[$sc]['subsections'][$uc] ??= ['code' => $r['sub_code'], 'title' => $r['sub_title'], 'sort_order' => (int)$r['sub_so'], 'indicators' => []];
+        $tree[$sc]['subsections'][$uc]['indicators'][] = [
+            'code' => $r['ind_code'], 'title' => $r['ind_title'],
+            'criteria' => $r['criteria'], 'sort_order' => (int)$r['ind_so'],
+        ];
+    }
+    foreach ($tree as &$s) { $s['subsections'] = array_values($s['subsections']); } unset($s);
+
+    $payload = [
+        'meta' => [
+            'app'         => 'OIT',
+            'type'        => 'indicators',
+            'version'     => 1,
+            'year_code'   => $fy['year_code'],
+            'label'       => $fy['label'],
+            'exported_at' => date('c'),
+        ],
+        'sections' => array_values($tree),
+    ];
+
+    $fname = 'oit-indicators-' . $fy['year_code'] . '-' . date('Ymd') . '.json';
+    header('Content-Type: application/json; charset=UTF-8');
+    header('Content-Disposition: attachment; filename="' . $fname . '"');
+    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    exit;
+}
+
 // All other actions require auth
 $user     = require_auth();
 $role     = $user['role'];
@@ -64,6 +118,7 @@ match ($action) {
     'set_active_year'  => setActiveYear(),
     'add_indicator'    => addIndicator(),
     'edit_indicator'   => editIndicator(),
+    'import_indicators'=> importIndicators(),
     'approve_school'   => approveSchool(),
     'set_school_status'=> setSchoolStatus(),
     default            => json_err('Unknown action', 400),
@@ -269,6 +324,101 @@ function editIndicator(): never {
     db()->prepare('UPDATE indicators SET code=?, title=?, criteria=?, subsection_id=? WHERE id=?')
         ->execute([$code, $title, $criteria ?: null, $subId, $id]);
     json_ok();
+}
+
+function importIndicators(): never {
+    global $role; if ($role !== 'centraladmin') json_err('Forbidden', 403);
+
+    $yc = trim($_POST['year_code'] ?? '');
+    if ($yc === '') json_err('ไม่ได้ระบุปีงบประมาณปลายทาง');
+
+    // Read JSON from uploaded file or pasted text
+    $raw = '';
+    if (!empty($_FILES['file']['tmp_name']) && is_uploaded_file($_FILES['file']['tmp_name'])) {
+        if (($_FILES['file']['size'] ?? 0) > MAX_UPLOAD) json_err('ไฟล์ใหญ่เกินไป');
+        $raw = (string)file_get_contents($_FILES['file']['tmp_name']);
+    } elseif (!empty($_POST['json'])) {
+        $raw = (string)$_POST['json'];
+    }
+    if (trim($raw) === '') json_err('ไม่พบข้อมูลสำหรับนำเข้า');
+
+    $data = json_decode($raw, true);
+    if (!is_array($data) || empty($data['sections']) || !is_array($data['sections'])) {
+        json_err('รูปแบบไฟล์ไม่ถูกต้อง (ต้องมี sections)');
+    }
+
+    $fyStmt = db()->prepare('SELECT id FROM fiscal_years WHERE year_code = ?');
+    $fyStmt->execute([$yc]);
+    $fyId = $fyStmt->fetchColumn();
+    if (!$fyId) json_err('ไม่พบปีงบประมาณปลายทาง');
+
+    $cnt = ['sec_new' => 0, 'sub_new' => 0, 'ind_new' => 0, 'ind_upd' => 0];
+    $pdo = db();
+    $pdo->beginTransaction();
+    try {
+        // Prepared lookups/inserts
+        $findSec = $pdo->prepare('SELECT id FROM indicator_sections WHERE fiscal_year_id = ? AND code = ?');
+        $insSec  = $pdo->prepare('INSERT INTO indicator_sections (fiscal_year_id, code, title, sort_order) VALUES (?,?,?,?)');
+        $findSub = $pdo->prepare('SELECT id FROM indicator_subsections WHERE section_id = ? AND code = ?');
+        $insSub  = $pdo->prepare('INSERT INTO indicator_subsections (section_id, code, title, sort_order) VALUES (?,?,?,?)');
+        $findInd = $pdo->prepare('SELECT id FROM indicators WHERE subsection_id = ? AND code = ?');
+        $insInd  = $pdo->prepare('INSERT INTO indicators (subsection_id, code, title, criteria, sort_order) VALUES (?,?,?,?,?)');
+        $updInd  = $pdo->prepare('UPDATE indicators SET title = ?, criteria = ?, sort_order = ? WHERE id = ?');
+
+        foreach ($data['sections'] as $si => $sec) {
+            $secCode = trim((string)($sec['code'] ?? ''));
+            $secTitle = trim((string)($sec['title'] ?? ''));
+            if ($secCode === '' || $secTitle === '') continue;
+            $secSort = (int)($sec['sort_order'] ?? ($si + 1));
+
+            $findSec->execute([$fyId, $secCode]);
+            $secId = $findSec->fetchColumn();
+            if (!$secId) {
+                $insSec->execute([$fyId, $secCode, $secTitle, $secSort]);
+                $secId = $pdo->lastInsertId();
+                $cnt['sec_new']++;
+            }
+
+            foreach (($sec['subsections'] ?? []) as $ui => $sub) {
+                $subCode = trim((string)($sub['code'] ?? ''));
+                $subTitle = trim((string)($sub['title'] ?? ''));
+                if ($subCode === '' || $subTitle === '') continue;
+                $subSort = (int)($sub['sort_order'] ?? ($ui + 1));
+
+                $findSub->execute([$secId, $subCode]);
+                $subId = $findSub->fetchColumn();
+                if (!$subId) {
+                    $insSub->execute([$secId, $subCode, $subTitle, $subSort]);
+                    $subId = $pdo->lastInsertId();
+                    $cnt['sub_new']++;
+                }
+
+                foreach (($sub['indicators'] ?? []) as $ii => $ind) {
+                    $indCode = trim((string)($ind['code'] ?? ''));
+                    $indTitle = trim((string)($ind['title'] ?? ''));
+                    if ($indCode === '' || $indTitle === '') continue;
+                    $indCrit = trim((string)($ind['criteria'] ?? '')) ?: null;
+                    $indSort = (int)($ind['sort_order'] ?? ($ii + 1));
+
+                    $findInd->execute([$subId, $indCode]);
+                    $indId = $findInd->fetchColumn();
+                    if ($indId) {
+                        $updInd->execute([$indTitle, $indCrit, $indSort, $indId]);
+                        $cnt['ind_upd']++;
+                    } else {
+                        $insInd->execute([$subId, $indCode, $indTitle, $indCrit, $indSort]);
+                        $cnt['ind_new']++;
+                    }
+                }
+            }
+        }
+        $pdo->commit();
+    } catch (Throwable $ex) {
+        $pdo->rollBack();
+        json_err('นำเข้าไม่สำเร็จ: ' . $ex->getMessage(), 500);
+    }
+
+    json_ok($cnt);
 }
 
 function approveSchool(): never {

@@ -59,6 +59,9 @@ if ($fyCode) {
         <?php else: ?>
         <button class="btn btn-ghost btn-xs" onclick="setActiveFY(<?= $fy['id'] ?>, '<?= e($fy['year_code']) ?>')">ตั้งเป็นปีใช้งาน</button>
         <?php endif; ?>
+        <a class="icon-btn" title="ส่งออกตัวชี้วัดปีนี้" href="<?= APP_URL ?>/api.php?action=export_indicators&fy=<?= e($fy['year_code']) ?>">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </a>
       </div>
       <?php endforeach; ?>
     </div>
@@ -68,7 +71,13 @@ if ($fyCode) {
   <div class="card criteria-tree-card">
     <div class="card-header">
       ตัวชี้วัด OIT ปี <?= e($fyCode) ?>
-      <button class="btn btn-primary btn-sm" onclick="openAddInd()">+ เพิ่มตัวชี้วัด</button>
+      <div class="card-header-actions">
+        <a class="btn btn-ghost btn-sm" href="<?= APP_URL ?>/api.php?action=export_indicators&fy=<?= e($fyCode) ?>">
+          ⬇ ส่งออก
+        </a>
+        <button class="btn btn-ghost btn-sm" onclick="openImport()">⬆ นำเข้า</button>
+        <button class="btn btn-primary btn-sm" onclick="openAddInd()">+ เพิ่มตัวชี้วัด</button>
+      </div>
     </div>
     <div class="criteria-tree">
       <?php foreach ($tree as $sec): ?>
@@ -176,8 +185,55 @@ if ($fyCode) {
   </div>
 </div>
 
+<!-- ─── IMPORT INDICATORS MODAL ─── -->
+<div class="modal-backdrop hidden" id="importModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">นำเข้าตัวชี้วัด — ปี <?= e($fyCode) ?></h2>
+      <button class="modal-close" onclick="document.getElementById('importModal').classList.add('hidden')">✕</button>
+    </div>
+    <form id="importForm" class="modal-body" enctype="multipart/form-data">
+      <?= csrf_field() ?>
+      <input type="hidden" name="action" value="import_indicators">
+      <input type="hidden" name="year_code" value="<?= e($fyCode) ?>">
+      <div class="alert alert-info" style="margin-bottom:16px">
+        เลือกไฟล์ JSON ที่ส่งออกจากระบบ (ปีใดก็ได้) ระบบจะเพิ่มหมวด/หมวดย่อย/ตัวชี้วัดเข้าปี <b><?= e($fyCode) ?></b>
+        โดยยึดตาม <b>รหัส (code)</b> — รายการที่มีรหัสซ้ำจะถูกปรับปรุงข้อมูล ไม่สร้างซ้ำ
+      </div>
+      <div class="form-group">
+        <label class="form-label">ไฟล์ตัวชี้วัด (.json) <span class="req">*</span></label>
+        <input type="file" name="file" id="importFile" class="form-input" accept="application/json,.json" required>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="document.getElementById('importModal').classList.add('hidden')">ยกเลิก</button>
+        <button type="submit" class="btn btn-primary" id="importSubmit">นำเข้า</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
 function openAddFY() { document.getElementById('addFYModal').classList.remove('hidden'); }
+function openImport() { document.getElementById('importModal').classList.remove('hidden'); }
+
+document.getElementById('importForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('importSubmit');
+    btn.disabled = true; btn.textContent = 'กำลังนำเข้า...';
+    fetch(APP_URL + '/api.php', { method:'POST', body: new FormData(this) })
+        .then(r => r.json())
+        .then(r => {
+            if (r.ok) {
+                const d = r.data;
+                showToast('นำเข้าสำเร็จ: เพิ่มตัวชี้วัด ' + d.ind_new + ', ปรับปรุง ' + d.ind_upd + ' รายการ');
+                setTimeout(() => location.reload(), 800);
+            } else {
+                showToast(r.error, 'error');
+                btn.disabled = false; btn.textContent = 'นำเข้า';
+            }
+        })
+        .catch(() => { showToast('เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error'); btn.disabled = false; btn.textContent = 'นำเข้า'; });
+});
 
 async function setActiveFY(id, code) {
     if (!await uiConfirm('ตั้งปีงบประมาณ ' + code + ' เป็นปีที่ใช้งานปัจจุบัน?',

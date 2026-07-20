@@ -159,7 +159,9 @@ function parseSql(string $sql): array
 }
 
 // Derive app URL for the "go to app" link
-$scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$scheme = ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+    || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https')
+    || ((int)($_SERVER['SERVER_PORT'] ?? 0) === 443)) ? 'https' : 'http';
 $host_h = $_SERVER['HTTP_HOST'] ?? 'localhost';
 $root   = str_replace('\\', '/', __DIR__);
 $docRoot = rtrim(str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT'] ?? ''), '/');

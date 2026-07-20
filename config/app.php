@@ -32,7 +32,13 @@ define('MAX_UPLOAD', 10 * 1024 * 1024); // 10 MB
 
 // Derive base URL from server vars
 (function () {
-    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    // Detect HTTPS even behind a reverse proxy that terminates SSL,
+    // otherwise APP_URL becomes http:// and AJAX fetch is blocked as mixed content.
+    $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https')
+        || (($_SERVER['HTTP_X_FORWARDED_SSL'] ?? '') === 'on')
+        || ((int)($_SERVER['SERVER_PORT'] ?? 0) === 443);
+    $scheme = $https ? 'https' : 'http';
     $host   = $_SERVER['HTTP_HOST'] ?? 'localhost';
     $root   = str_replace('\\', '/', APP_ROOT);
     $docRoot = rtrim(str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT'] ?? ''), '/');
