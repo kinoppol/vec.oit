@@ -13,6 +13,16 @@ $users = $stmt->fetchAll();
 $posStmt = db()->prepare('SELECT id, name FROM positions WHERE school_id = ? ORDER BY name');
 $posStmt->execute([$schoolId]);
 $positions = $posStmt->fetchAll();
+
+// Positions per user (many-to-many)
+$upStmt = db()->prepare('
+    SELECT up.user_id, p.name FROM user_positions up
+    JOIN positions p ON p.id = up.position_id
+    WHERE p.school_id = ? ORDER BY p.name
+');
+$upStmt->execute([$schoolId]);
+$userPositions = [];
+foreach ($upStmt->fetchAll() as $r) { $userPositions[(int)$r['user_id']][] = $r['name']; }
 ?>
 <div class="users-layout">
 
@@ -85,10 +95,12 @@ $positions = $posStmt->fetchAll();
               'centraladmin' => 'ผู้ดูแลส่วนกลาง',
               default        => 'ผู้กรอกข้อมูล'
             }) ?></td>
-            <td class="user-position" data-uid="<?= $u['id'] ?>">
-              <span class="pos-text"><?php if (!empty($u['position'])): ?><?= e($u['position']) ?><?php else: ?><span class="pos-empty">— กำหนด</span><?php endif; ?></span>
-              <button class="icon-btn pos-edit" title="แก้ไขตำแหน่ง"
-                      onclick="editPosition(<?= $u['id'] ?>, <?= e(json_encode($u['position'] ?? '', JSON_UNESCAPED_UNICODE)) ?>, <?= e(json_encode($u['full_name'], JSON_UNESCAPED_UNICODE)) ?>)">
+            <?php $uPos = $userPositions[(int)$u['id']] ?? []; ?>
+            <td class="user-position" data-uid="<?= $u['id'] ?>"
+                data-pos="<?= e(json_encode(array_values($uPos), JSON_UNESCAPED_UNICODE)) ?>"
+                data-name="<?= e($u['full_name']) ?>">
+              <span class="pos-text"><?php if ($uPos): ?><?php foreach ($uPos as $pn): ?><span class="pos-chip"><?= e($pn) ?></span><?php endforeach; ?><?php else: ?><span class="pos-empty">— กำหนด</span><?php endif; ?></span>
+              <button class="icon-btn pos-edit" title="แก้ไขตำแหน่ง" onclick="editPosition(<?= $u['id'] ?>)">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
               </button>
             </td>
@@ -201,15 +213,21 @@ $positions = $posStmt->fetchAll();
     <form id="posForm" class="modal-body">
       <input type="hidden" id="posUserId">
       <div class="alert alert-info" style="margin-bottom:16px">
-        ตำแหน่งของ <strong id="posUserName"></strong> — เลือกจากรายการหรือพิมพ์ตำแหน่งใหม่ได้ (ค่านี้จะไม่ถูกล้างเมื่อโอน RMS ใหม่)
+        ตำแหน่งของ <strong id="posUserName"></strong> — เพิ่มได้หลายตำแหน่ง เลือกจากรายการหรือพิมพ์ตำแหน่งใหม่ (ค่านี้จะไม่ถูกล้างเมื่อโอน RMS ใหม่)
       </div>
       <div class="form-group">
-        <label class="form-label">ตำแหน่ง</label>
-        <input type="text" id="posInput" class="form-input" list="posDatalist" maxlength="150"
-               placeholder="พิมพ์เพื่อค้นหา/เพิ่มใหม่ เช่น ครู, หัวหน้างานพัสดุ">
-        <datalist id="posDatalist">
-          <?php foreach ($positions as $p): ?><option value="<?= e($p['name']) ?>"></option><?php endforeach; ?>
-        </datalist>
+        <label class="form-label">ตำแหน่ง (เพิ่มได้หลายรายการ)</label>
+        <div class="tag-field">
+          <div id="posTags" class="tag-chips"></div>
+          <div class="tag-add">
+            <input type="text" id="posInput" class="form-input" list="posDatalist" maxlength="150"
+                   placeholder="พิมพ์แล้วกด Enter เพื่อเพิ่ม เช่น ครู, หัวหน้างานพัสดุ">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="addPosTag()">เพิ่ม</button>
+            <datalist id="posDatalist">
+              <?php foreach ($positions as $p): ?><option value="<?= e($p['name']) ?>"></option><?php endforeach; ?>
+            </datalist>
+          </div>
+        </div>
       </div>
       <div class="modal-footer" style="justify-content:space-between">
         <button type="button" class="btn btn-ghost btn-sm" onclick="openManagePos()">จัดการรายการตำแหน่ง</button>
@@ -242,27 +260,54 @@ $positions = $posStmt->fetchAll();
 <script>
 const RMS_API_PATH = '<?= RMS_API_PATH ?>';
 
-// ── Edit user position ──
-function editPosition(userId, current, name) {
+// ── Edit user positions (multiple) ──
+let posTags = [];
+function renderPosTags() {
+    document.getElementById('posTags').innerHTML = posTags.length
+        ? posTags.map((t, i) => '<span class="tag-chip">' + escHtml(t)
+            + '<button type="button" class="tag-x" onclick="removePosTag(' + i + ')">✕</button></span>').join('')
+        : '<span class="tag-empty">ยังไม่มีตำแหน่ง</span>';
+}
+function addPosTag() {
+    const inp = document.getElementById('posInput');
+    const v = inp.value.trim();
+    if (v && !posTags.includes(v)) posTags.push(v);
+    inp.value = '';
+    renderPosTags();
+    inp.focus();
+}
+function removePosTag(i) { posTags.splice(i, 1); renderPosTags(); }
+
+function editPosition(userId) {
+    const cell = document.querySelector('.user-position[data-uid="' + userId + '"]');
+    let cur = [];
+    try { cur = JSON.parse(cell.dataset.pos || '[]'); } catch (e) {}
+    posTags = Array.isArray(cur) ? cur.slice() : [];
     document.getElementById('posUserId').value = userId;
-    document.getElementById('posUserName').textContent = name;
-    document.getElementById('posInput').value = current || '';
+    document.getElementById('posUserName').textContent = cell.dataset.name || '';
+    document.getElementById('posInput').value = '';
+    renderPosTags();
     document.getElementById('posModal').classList.remove('hidden');
     setTimeout(() => document.getElementById('posInput').focus(), 50);
 }
+document.getElementById('posInput').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); addPosTag(); }
+});
 document.getElementById('posForm').addEventListener('submit', function (e) {
     e.preventDefault();
+    addPosTag(); // capture any text still in the input
     const uid = document.getElementById('posUserId').value;
-    const pos = document.getElementById('posInput').value.trim();
-    apiPost({ action:'update_user_position', user_id: uid, position: pos }).then(r => {
+    apiPost({ action:'update_user_position', user_id: uid, positions: JSON.stringify(posTags) }).then(r => {
         if (!r.ok) { showToast(r.error, 'error'); return; }
-        const cell = document.querySelector('.user-position[data-uid="' + uid + '"] .pos-text');
-        if (cell) {
-            if (pos) cell.textContent = pos;
-            else cell.innerHTML = '<span class="pos-empty">— กำหนด</span>';
+        const td = document.querySelector('.user-position[data-uid="' + uid + '"]');
+        if (td) {
+            td.dataset.pos = JSON.stringify(posTags);
+            td.querySelector('.pos-text').innerHTML = posTags.length
+                ? posTags.map(t => '<span class="pos-chip">' + escHtml(t) + '</span>').join('')
+                : '<span class="pos-empty">— กำหนด</span>';
+            const row = td.closest('.user-row');
+            if (row) row.dataset.search = (row.dataset.search + ' ' + posTags.join(' ').toLowerCase());
         }
-        const row = document.querySelector('.user-position[data-uid="' + uid + '"]')?.closest('.user-row');
-        if (row) row.dataset.search = (row.dataset.search + ' ' + pos.toLowerCase());
         document.getElementById('posModal').classList.add('hidden');
         showToast('บันทึกตำแหน่งแล้ว');
     });

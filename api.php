@@ -450,29 +450,57 @@ function toggleUser(): never {
     json_ok();
 }
 
-/** Ensure a position name exists in the school's master list */
-function ensure_position(int $schoolId, string $name): void {
+/** Ensure a position name exists in the school's master list; return its id */
+function ensure_position(int $schoolId, string $name): ?int {
     $name = trim($name);
-    if ($name === '') return;
+    if ($name === '') return null;
     db()->prepare('INSERT IGNORE INTO positions (school_id, name) VALUES (?, ?)')->execute([$schoolId, $name]);
+    $s = db()->prepare('SELECT id FROM positions WHERE school_id = ? AND name = ?');
+    $s->execute([$schoolId, $name]);
+    $id = $s->fetchColumn();
+    return $id ? (int)$id : null;
+}
+
+/** Recompute the ", "-joined users.position cache from the junction table */
+function refresh_position_cache(int $schoolId): void {
+    db()->prepare('
+        UPDATE users u SET u.position = (
+            SELECT GROUP_CONCAT(p.name ORDER BY p.name SEPARATOR ", ")
+            FROM user_positions up JOIN positions p ON p.id = up.position_id
+            WHERE up.user_id = u.id
+        ) WHERE u.school_id = ?
+    ')->execute([$schoolId]);
 }
 
 function updateUserPosition(): never {
     global $schoolId, $role;
     if ($role !== 'schooladmin') json_err('Forbidden', 403);
     $uid = (int)($_POST['user_id'] ?? 0);
-    $pos = trim($_POST['position'] ?? '');
     if (!$uid) json_err('Missing user');
-    if (mb_strlen($pos) > 150) json_err('ตำแหน่งยาวเกินไป');
 
     // Must belong to this school
     $chk = db()->prepare('SELECT id FROM users WHERE id = ? AND school_id = ?');
     $chk->execute([$uid, $schoolId]);
     if (!$chk->fetch()) json_err('ไม่พบผู้ใช้ในสถานศึกษานี้', 404);
 
-    db()->prepare('UPDATE users SET position = ? WHERE id = ?')->execute([$pos ?: null, $uid]);
-    ensure_position($schoolId, $pos); // grow the master list when a new title is typed
-    json_ok(['position' => $pos]);
+    // positions: JSON array or comma-separated list (supports multiple)
+    $raw = $_POST['positions'] ?? '';
+    $dec = json_decode($raw, true);
+    $names = is_array($dec) ? $dec : explode(',', $raw);
+    $names = array_values(array_unique(array_filter(
+        array_map(fn($n) => trim((string)$n), $names),
+        fn($n) => $n !== '' && mb_strlen($n) <= 150
+    )));
+
+    $ids = [];
+    foreach ($names as $n) { if ($id = ensure_position($schoolId, $n)) $ids[] = $id; }
+
+    db()->prepare('DELETE FROM user_positions WHERE user_id = ?')->execute([$uid]);
+    $insUp = db()->prepare('INSERT IGNORE INTO user_positions (user_id, position_id) VALUES (?, ?)');
+    foreach ($ids as $pid) $insUp->execute([$uid, $pid]);
+
+    db()->prepare('UPDATE users SET position = ? WHERE id = ?')->execute([implode(', ', $names) ?: null, $uid]);
+    json_ok(['positions' => $names, 'joined' => implode(', ', $names)]);
 }
 
 function listPositions(): never {
@@ -510,8 +538,7 @@ function renamePosition(): never {
     if ($dup->fetch()) json_err('มีชื่อตำแหน่งนี้อยู่แล้ว');
 
     db()->prepare('UPDATE positions SET name = ? WHERE id = ? AND school_id = ?')->execute([$name, $id, $schoolId]);
-    // Keep users in sync with the renamed title
-    db()->prepare('UPDATE users SET position = ? WHERE school_id = ? AND position = ?')->execute([$name, $schoolId, $old]);
+    refresh_position_cache($schoolId); // junction unchanged, but cached names need refresh
     json_ok();
 }
 
@@ -520,7 +547,8 @@ function deletePosition(): never {
     if ($role !== 'schooladmin') json_err('Forbidden', 403);
     $id = (int)($_POST['id'] ?? 0);
     if (!$id) json_err('Missing id');
-    db()->prepare('DELETE FROM positions WHERE id = ? AND school_id = ?')->execute([$id, $schoolId]);
+    db()->prepare('DELETE FROM positions WHERE id = ? AND school_id = ?')->execute([$id, $schoolId]); // FK cascades junction
+    refresh_position_cache($schoolId);
     json_ok();
 }
 
