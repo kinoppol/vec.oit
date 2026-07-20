@@ -71,7 +71,7 @@ $users = $stmt->fetchAll();
         <?= csrf_field() ?>
         <input type="hidden" name="action" value="update_rms_url">
         <input type="url" name="rms_base_url" id="rmsBaseUrl" class="form-input"
-               placeholder="http://rms.rvc.ac.th" value="<?= e($school['rms_base_url'] ?? '') ?>" maxlength="300">
+               placeholder="http://rms..." value="<?= e($school['rms_base_url'] ?? '') ?>" maxlength="300">
         <button type="submit" class="btn btn-ghost">บันทึก URL</button>
         <button type="button" class="btn btn-primary" onclick="importRms()">โอนข้อมูลผู้ใช้</button>
       </form>
