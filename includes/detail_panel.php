@@ -44,25 +44,38 @@
   <!-- RESPONSIBLE USER -->
   <div class="detail-section">
     <div class="detail-section-hdr">ผู้รับผิดชอบ</div>
+    <?php
+      // Current assignment display value + type
+      if (!empty($ind['assigned_position_id'])) { $curVal = 'ตำแหน่ง: ' . ($ind['assignee_pos_name'] ?? ''); $curType = 'position'; $curId = (int)$ind['assigned_position_id']; }
+      elseif (!empty($ind['assigned_user_id']))  { $curVal = $ind['assignee_name'] ?? ''; $curType = 'user'; $curId = (int)$ind['assigned_user_id']; }
+      else { $curVal = ''; $curType = 'none'; $curId = 0; }
+    ?>
     <?php if (!empty($canAssign)): ?>
     <div class="assignee-ac" data-ind="<?= (int)$ind['id'] ?>">
       <input type="text" class="form-input assignee-input" autocomplete="off"
-             placeholder="พิมพ์ชื่อ / ชื่อเล่น / นามสกุล / ตำแหน่ง…"
-             value="<?= e($ind['assignee_name'] ?? '') ?>">
-      <input type="hidden" class="assignee-uid" value="<?= (int)($ind['assigned_user_id'] ?? 0) ?>">
-      <button type="button" class="assignee-clear" title="ล้างการมอบหมาย" <?= empty($ind['assigned_user_id']) ? 'style="display:none"' : '' ?>>✕</button>
+             placeholder="พิมพ์ชื่อ / ชื่อเล่น / นามสกุล / ตำแหน่ง…" value="<?= e($curVal) ?>">
+      <button type="button" class="assignee-clear" title="ล้างการมอบหมาย" <?= $curType === 'none' ? 'style="display:none"' : '' ?>>✕</button>
       <div class="assignee-menu hidden"></div>
     </div>
-    <script type="application/json" class="assignee-data"><?= json_encode(array_map(fn($su) => [
-        'id'    => (int)$su['id'],
-        'name'  => $su['full_name'],
-        'nick'  => $su['nickname'] ?? '',
-        'pos'   => $su['position'] ?? '',
-        'admin' => $su['role'] === 'schooladmin',
-    ], $schoolUsers ?? []), JSON_UNESCAPED_UNICODE) ?></script>
+    <script type="application/json" class="assignee-data"><?= json_encode([
+        'users' => array_map(fn($su) => [
+            'id'    => (int)$su['id'],
+            'name'  => $su['full_name'],
+            'nick'  => $su['nickname'] ?? '',
+            'pos'   => $su['position'] ?? '',
+            'admin' => $su['role'] === 'schooladmin',
+        ], $schoolUsers ?? []),
+        'positions' => array_map(fn($p) => [
+            'id' => (int)$p['id'], 'name' => $p['name'], 'n' => (int)$p['n'],
+        ], $schoolPositions ?? []),
+        'current' => ['type' => $curType, 'name' => $curVal],
+    ], JSON_UNESCAPED_UNICODE) ?></script>
     <?php else: ?>
     <div class="assignee-display">
-      <?php if (!empty($ind['assignee_name'])): ?>
+      <?php if ($curType === 'position'): ?>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        ตำแหน่ง: <?= e($ind['assignee_pos_name'] ?? '') ?>
+      <?php elseif ($curType === 'user'): ?>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         <?= e($ind['assignee_name']) ?>
       <?php else: ?>

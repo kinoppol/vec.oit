@@ -223,33 +223,41 @@ function initAssignee() {
     const box = document.querySelector('.assignee-ac');
     if (!box) return;
     const input    = box.querySelector('.assignee-input');
-    const hidden   = box.querySelector('.assignee-uid');
     const clearBtn = box.querySelector('.assignee-clear');
     const menu     = box.querySelector('.assignee-menu');
     const indId    = box.dataset.ind;
-    let users = [];
-    try { users = JSON.parse(document.querySelector('.assignee-data').textContent) || []; } catch (e) {}
-    let currentDisplay = input.value;
+    let data = { users: [], positions: [], current: { type: 'none', name: '' } };
+    try { data = JSON.parse(document.querySelector('.assignee-data').textContent) || data; } catch (e) {}
+    let currentDisplay = data.current ? data.current.name : input.value;
 
     const close = () => { menu.classList.add('hidden'); menu.innerHTML = ''; };
-    const pick = (id, name) => {
-        hidden.value = id;
+    const pick = (type, id, name) => {
         input.value = name;
         currentDisplay = name;
-        clearBtn.style.display = id > 0 ? '' : 'none';
+        clearBtn.style.display = type === 'none' ? 'none' : '';
         close();
-        assignIndicator(indId, id);
+        assignIndicator(indId, type, id);
     };
     const render = q => {
         q = (q || '').toLowerCase().trim();
-        let list = q ? users.filter(u => (u.name + ' ' + u.nick + ' ' + u.pos).toLowerCase().indexOf(q) !== -1) : users;
-        list = list.slice(0, 40);
-        let html = '<div class="assignee-opt" data-id="0">— ยังไม่มอบหมาย —</div>';
-        html += list.map(u => '<div class="assignee-opt" data-id="' + u.id + '">'
-            + '<span class="ao-name">' + escHtml(u.name) + (u.admin ? ' <span class="ao-admin">ผู้ดูแล</span>' : '') + '</span>'
-            + ((u.nick || u.pos) ? '<span class="ao-sub">' + [u.nick, u.pos].filter(Boolean).map(escHtml).join(' · ') + '</span>' : '')
-            + '</div>').join('');
-        if (!list.length && q) html += '<div class="assignee-empty">ไม่พบผู้ใช้</div>';
+        const posList = (q ? data.positions.filter(p => p.name.toLowerCase().indexOf(q) !== -1) : data.positions).slice(0, 20);
+        const usrList = (q ? data.users.filter(u => (u.name + ' ' + u.nick + ' ' + u.pos).toLowerCase().indexOf(q) !== -1) : data.users).slice(0, 40);
+
+        let html = '<div class="assignee-opt" data-type="none" data-id="0">— ยังไม่มอบหมาย —</div>';
+        if (posList.length) {
+            html += '<div class="assignee-group">ตำแหน่ง</div>';
+            html += posList.map(p => '<div class="assignee-opt" data-type="position" data-id="' + p.id + '">'
+                + '<span class="ao-name"><span class="ao-postag">ตำแหน่ง</span> ' + escHtml(p.name) + '</span>'
+                + '<span class="ao-sub">' + p.n + ' คนในตำแหน่งนี้</span></div>').join('');
+        }
+        if (usrList.length) {
+            html += '<div class="assignee-group">บุคคล</div>';
+            html += usrList.map(u => '<div class="assignee-opt" data-type="user" data-id="' + u.id + '">'
+                + '<span class="ao-name">' + escHtml(u.name) + (u.admin ? ' <span class="ao-admin">ผู้ดูแล</span>' : '') + '</span>'
+                + ((u.nick || u.pos) ? '<span class="ao-sub">' + [u.nick, u.pos].filter(Boolean).map(escHtml).join(' · ') + '</span>' : '')
+                + '</div>').join('');
+        }
+        if (!posList.length && !usrList.length && q) html += '<div class="assignee-empty">ไม่พบบุคคลหรือตำแหน่ง</div>';
         menu.innerHTML = html;
         menu.classList.remove('hidden');
     };
@@ -261,17 +269,21 @@ function initAssignee() {
         const opt = e.target.closest('.assignee-opt');
         if (!opt) return;
         e.preventDefault();
-        const id = parseInt(opt.dataset.id, 10);
-        pick(id, id === 0 ? '' : (users.find(u => u.id === id) || {}).name || '');
+        const type = opt.dataset.type, id = parseInt(opt.dataset.id, 10);
+        let name = '';
+        if (type === 'user')     name = (data.users.find(u => u.id === id) || {}).name || '';
+        else if (type === 'position') name = 'ตำแหน่ง: ' + ((data.positions.find(p => p.id === id) || {}).name || '');
+        pick(type, id, name);
     });
-    clearBtn.addEventListener('click', () => pick(0, ''));
+    clearBtn.addEventListener('click', () => pick('none', 0, ''));
 }
 
-// ── Assign responsible user ───────────────────────────────
-function assignIndicator(indId, userId) {
-    apiPost({ action: 'assign_indicator', indicator_id: indId, user_id: userId }).then(r => {
+// ── Assign responsible user/position ──────────────────────
+function assignIndicator(indId, type, id) {
+    apiPost({ action: 'assign_indicator', indicator_id: indId, target_type: type, target_id: id }).then(r => {
         if (r.ok) {
-            showToast(userId > 0 ? 'มอบหมายผู้รับผิดชอบแล้ว' : 'ยกเลิกการมอบหมายแล้ว');
+            showToast(type === 'none' ? 'ยกเลิกการมอบหมายแล้ว'
+                    : (type === 'position' ? 'มอบหมายให้ตำแหน่งแล้ว' : 'มอบหมายผู้รับผิดชอบแล้ว'));
             if (window.selectedIndicatorId) loadIndicator(window.selectedIndicatorId);
         } else { showToast(r.error, 'error'); }
     });

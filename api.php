@@ -22,10 +22,12 @@ if ($action === 'indicator_detail') {
 
     $stmt = db()->prepare('
         SELECT ind.*, COALESCE(sis.status,"pending") AS status, sis.note AS status_note,
-               sis.assigned_user_id, au.full_name AS assignee_name
+               sis.assigned_user_id, au.full_name AS assignee_name,
+               sis.assigned_position_id, ap.name AS assignee_pos_name
         FROM indicators ind
         LEFT JOIN school_indicator_status sis ON sis.indicator_id = ind.id AND sis.school_id = :sid
         LEFT JOIN users au ON au.id = sis.assigned_user_id
+        LEFT JOIN positions ap ON ap.id = sis.assigned_position_id
         WHERE ind.id = :id
     ');
     $stmt->execute([':id' => $id, ':sid' => $schoolId]);
@@ -40,10 +42,19 @@ if ($action === 'indicator_detail') {
     $panelRole = $authUser['role'];
     $canAssign = ($panelRole === 'schooladmin');
     $schoolUsers = [];
+    $schoolPositions = [];
     if ($canAssign) {
         $uStmt = db()->prepare('SELECT id, full_name, nickname, position, role FROM users WHERE school_id = ? AND status = "active" ORDER BY role DESC, full_name');
         $uStmt->execute([$schoolId]);
         $schoolUsers = $uStmt->fetchAll();
+
+        $pStmt = db()->prepare('
+            SELECT p.id, p.name, COUNT(up.user_id) AS n
+            FROM positions p LEFT JOIN user_positions up ON up.position_id = p.id
+            WHERE p.school_id = ? GROUP BY p.id ORDER BY p.name
+        ');
+        $pStmt->execute([$schoolId]);
+        $schoolPositions = $pStmt->fetchAll();
     }
 
     ob_start();
@@ -171,25 +182,33 @@ function assignIndicator(): never {
     global $schoolId, $role;
     if ($role !== 'schooladmin') json_err('Forbidden', 403);
 
-    $indId  = (int)($_POST['indicator_id'] ?? 0);
-    $userId = (int)($_POST['user_id'] ?? 0); // 0 = unassign
+    $indId = (int)($_POST['indicator_id'] ?? 0);
+    $type  = $_POST['target_type'] ?? 'none'; // user | position | none
+    $tid   = (int)($_POST['target_id'] ?? 0);
     if (!$indId) json_err('Missing indicator');
 
-    $assignee = null;
-    if ($userId > 0) {
-        // The assignee must belong to this school
+    $uid = null; $pid = null;
+    if ($type === 'user' && $tid > 0) {
         $chk = db()->prepare('SELECT id FROM users WHERE id = ? AND school_id = ?');
-        $chk->execute([$userId, $schoolId]);
+        $chk->execute([$tid, $schoolId]);
         if (!$chk->fetch()) json_err('ผู้ใช้ไม่อยู่ในสถานศึกษานี้', 400);
-        $assignee = $userId;
+        $uid = $tid;
+    } elseif ($type === 'position' && $tid > 0) {
+        $chk = db()->prepare('SELECT id FROM positions WHERE id = ? AND school_id = ?');
+        $chk->execute([$tid, $schoolId]);
+        if (!$chk->fetch()) json_err('ไม่พบตำแหน่งนี้', 400);
+        $pid = $tid;
     }
 
-    // Upsert the status row (keeps existing status; only sets the assignee)
+    // Upsert (keeps existing status; sets exactly one of user/position, or clears both)
     db()->prepare('
-        INSERT INTO school_indicator_status (school_id, indicator_id, assigned_user_id)
-        VALUES (?, ?, ?)
-        ON DUPLICATE KEY UPDATE assigned_user_id = VALUES(assigned_user_id), updated_at = NOW()
-    ')->execute([$schoolId, $indId, $assignee]);
+        INSERT INTO school_indicator_status (school_id, indicator_id, assigned_user_id, assigned_position_id)
+        VALUES (?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          assigned_user_id     = VALUES(assigned_user_id),
+          assigned_position_id = VALUES(assigned_position_id),
+          updated_at = NOW()
+    ')->execute([$schoolId, $indId, $uid, $pid]);
 
     json_ok();
 }
