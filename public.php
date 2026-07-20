@@ -6,9 +6,15 @@ require_once __DIR__ . '/includes/functions.php';
 $slug     = trim($_GET['slug'] ?? '');
 $yearCode = trim($_GET['year'] ?? '');
 
-if (!$slug || !$yearCode) {
-    http_response_code(404);
-    exit('ไม่พบหน้าที่ต้องการ');
+// Default to the active fiscal year when none is supplied
+if ($yearCode === '') {
+    $yearCode = active_year()['year_code'];
+}
+
+// ── OVERVIEW: no school selected → public landing of every registered school ──
+if ($slug === '') {
+    include __DIR__ . '/includes/public_overview.php';
+    exit;
 }
 
 $stmt = db()->prepare('SELECT * FROM schools WHERE slug = ? AND status = "active"');

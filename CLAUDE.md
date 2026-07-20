@@ -20,6 +20,16 @@ mysql -u root < database/schema.sql
 
 Override DB credentials via environment variables: `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS`.
 
+**Alternative setup paths** (preferred over raw `schema.sql` for a fresh or partial DB):
+- **Install wizard** — visit `http://localhost/vec.oit/install.php` for a one-time guided setup; it writes `.installed` (gitignored) as a completion flag.
+- **Migration runner** — `migrate.php` runs every `database/migrations/*.sql` in filename order, skipping any already recorded in the `schema_migrations` table. Idempotent: "already exists / duplicate key" errors are treated as skips, so it is safe against a partially-imported DB.
+  ```bash
+  C:/xampp/php/php.exe migrate.php          # run pending migrations
+  C:/xampp/php/php.exe migrate.php status   # show applied/pending without running
+  # or via web: http://localhost/vec.oit/migrate.php
+  ```
+  Migrations `009`–`011` seed base data, indicators, and demo status/evidence. Add new schema changes as the next numbered `NNN_*.sql` file rather than editing `schema.sql`.
+
 **Syntax check a PHP file:**
 ```bash
 C:/xampp/php/php.exe -l path/to/file.php

@@ -28,8 +28,8 @@ $step    = 'form';   // form | done
 $errors  = [];
 $results = [];
 
-// ── POST: run installation ────────────────────────────────────
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $reqOk && empty($locked)) {
+// ── POST: run installation (re-runnable — schema is idempotent) ─
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $reqOk) {
     $host = trim($_POST['db_host'] ?? 'localhost');
     $name = trim($_POST['db_name'] ?? 'vec_oit');
     $user = trim($_POST['db_user'] ?? 'root');
@@ -87,7 +87,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $reqOk && empty($locked)) {
                 ($warnCnt ? ", {$warnCnt} คำเตือน" : '')
             ];
 
-            // 4. Write lock file
+            // 4. Create a central admin account (so the system is manageable
+            //    even when seed data is skipped)
+            if (!empty($_POST['create_admin'])) {
+                $anid  = trim($_POST['admin_nid'] ?? '');
+                $aname = trim($_POST['admin_name'] ?? '');
+                $apass = $_POST['admin_pass'] ?? '';
+                if (!preg_match('/^\d{13}$/', $anid)) {
+                    $results[] = ['warn', 'ข้ามการสร้างผู้ดูแล: เลขบัตรประชาชนต้องเป็นตัวเลข 13 หลัก'];
+                } elseif (strlen($apass) < 6) {
+                    $results[] = ['warn', 'ข้ามการสร้างผู้ดูแล: รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร'];
+                } else {
+                    $hash  = password_hash($apass, PASSWORD_DEFAULT);
+                    $aname = $aname !== '' ? $aname : 'ผู้ดูแลระบบส่วนกลาง';
+                    $ins = $pdo->prepare(
+                        'INSERT INTO `users`
+                           (`school_id`,`national_id`,`password_hash`,`full_name`,`role`,`status`,`must_change_pw`)
+                         VALUES (NULL, ?, ?, ?, "centraladmin", "active", 0)
+                         ON DUPLICATE KEY UPDATE
+                           `password_hash` = VALUES(`password_hash`),
+                           `full_name`     = VALUES(`full_name`),
+                           `role`          = "centraladmin",
+                           `status`        = "active",
+                           `must_change_pw`= 0'
+                    );
+                    $ins->execute([$anid, $hash, $aname]);
+                    $updated = $ins->rowCount() > 1; // 2 = updated existing row
+                    $results[] = ['ok', ($updated ? 'ปรับปรุง' : 'สร้าง') .
+                        "บัญชีผู้ดูแลส่วนกลาง (เลขบัตร {$anid}) เรียบร้อย"];
+                }
+            }
+
+            // 5. Write lock file
             file_put_contents(INSTALL_LOCK, date('Y-m-d H:i:s'));
             $step = 'done';
 
@@ -302,16 +333,6 @@ a { color: #7A1E28; }
   <div class="inst-header-badge">ตัวติดตั้งระบบ</div>
 </header>
 
-<?php if (!empty($locked) && $step !== 'done'): ?>
-<!-- ─── Locked ─── -->
-<div class="locked-wrap">
-  <div class="locked-icon">🔒</div>
-  <div class="locked-title">ระบบได้รับการติดตั้งแล้ว</div>
-  <div class="locked-sub">ตรวจพบไฟล์ <code>.installed</code> — ระบบถูกติดตั้งไปแล้วก่อนหน้านี้<br>หากต้องการติดตั้งใหม่ ให้ลบไฟล์ <code>.installed</code> ออกก่อน</div>
-  <a href="<?= htmlspecialchars($appUrl) ?>" class="btn btn-primary">ไปยังหน้าหลักระบบ</a>
-</div>
-
-<?php else: ?>
 <div class="inst-wrap">
 
   <?php if ($step === 'done'): ?>
@@ -362,6 +383,24 @@ a { color: #7A1E28; }
       </div>
       <?php endif; ?>
 
+      <?php if (!empty($_POST['create_admin']) && preg_match('/^\d{13}$/', $_POST['admin_nid'] ?? '') && strlen($_POST['admin_pass'] ?? '') >= 6): ?>
+      <!-- Created central admin login -->
+      <div style="margin-bottom:22px">
+        <div style="font-size:14px;font-weight:700;color:#221C18;margin-bottom:4px">บัญชีผู้ดูแลระบบที่สร้างไว้</div>
+        <table class="accounts-table">
+          <thead><tr><th>เลขประจำตัวประชาชน</th><th>ชื่อ</th><th>บทบาท</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="mono"><?= htmlspecialchars($_POST['admin_nid']) ?></td>
+              <td><?= htmlspecialchars(trim($_POST['admin_name'] ?? '') ?: 'ผู้ดูแลระบบส่วนกลาง') ?></td>
+              <td><span class="role-chip role-ca">centraladmin</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="form-hint" style="margin-top:6px">ใช้เลขบัตรนี้กับรหัสผ่านที่ตั้งไว้เพื่อเข้าสู่ระบบ</div>
+      </div>
+      <?php endif; ?>
+
       <div class="warn-banner" style="margin-bottom:22px">
         <span class="warn-icon">⚠️</span>
         <div>
@@ -383,6 +422,18 @@ a { color: #7A1E28; }
 
   <?php else: ?>
   <!-- ═══════════ FORM ═══════════ -->
+
+  <?php if (!empty($locked)): ?>
+  <!-- Re-install notice -->
+  <div class="warn-banner" style="margin-bottom:20px;background:#FFF8E6;border-color:#F0C040">
+    <span class="warn-icon">🔁</span>
+    <div>
+      <strong>ระบบเคยติดตั้งไปแล้ว</strong> (พบไฟล์ <code>.installed</code>) — สามารถติดตั้งซ้ำได้อย่างปลอดภัย
+      ตาราง/ข้อมูลที่มีอยู่แล้วจะถูกข้าม คุณสามารถใช้แบบฟอร์มด้านล่างเพื่อ<strong>สร้างบัญชีผู้ดูแลระบบเพิ่ม</strong>
+      โดยไม่ต้องเพิ่มข้อมูลตัวอย่างก็ได้
+    </div>
+  </div>
+  <?php endif; ?>
 
   <!-- Step 1: Requirements -->
   <div class="card">
@@ -458,6 +509,39 @@ a { color: #7A1E28; }
             </label>
           </div>
         </div>
+
+        <!-- Admin account -->
+        <div style="margin-top:22px;padding-top:20px;border-top:1px dashed #E0D6CD">
+          <label class="form-check" style="margin-bottom:14px">
+            <input type="checkbox" id="create_admin" name="create_admin" value="1"
+                   <?= !empty($_POST['create_admin']) || !isset($_POST['db_host']) ? 'checked' : '' ?>>
+            <strong>สร้างบัญชีผู้ดูแลระบบส่วนกลาง (centraladmin)</strong>
+          </label>
+          <div class="alert alert-info" style="margin-bottom:16px">
+            แนะนำให้เปิดไว้เสมอ โดยเฉพาะเมื่อ<strong>ไม่เพิ่มข้อมูลตัวอย่าง</strong> เพื่อให้มีบัญชีสำหรับเข้าจัดการระบบ
+          </div>
+          <div class="form-grid" id="adminFields">
+            <div class="form-group">
+              <label class="form-label" for="admin_nid">เลขประจำตัวประชาชน (13 หลัก)</label>
+              <input type="text" id="admin_nid" name="admin_nid" inputmode="numeric" maxlength="13"
+                     class="form-input" value="<?= htmlspecialchars($_POST['admin_nid'] ?? '') ?>"
+                     placeholder="เช่น 1100700000001">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="admin_name">ชื่อ-นามสกุลผู้ดูแล</label>
+              <input type="text" id="admin_name" name="admin_name"
+                     class="form-input" value="<?= htmlspecialchars($_POST['admin_name'] ?? '') ?>"
+                     placeholder="เช่น ผู้ดูแลระบบส่วนกลาง">
+            </div>
+            <div class="form-group full">
+              <label class="form-label" for="admin_pass">รหัสผ่าน (อย่างน้อย 6 ตัวอักษร)</label>
+              <input type="password" id="admin_pass" name="admin_pass"
+                     class="form-input" value="" placeholder="ตั้งรหัสผ่านสำหรับผู้ดูแล">
+              <span class="form-hint">หากบัญชีเลขบัตรนี้มีอยู่แล้ว ระบบจะปรับรหัสผ่าน/สิทธิ์เป็น centraladmin ให้</span>
+            </div>
+          </div>
+        </div>
+
         <div style="margin-top:22px;display:flex;gap:12px;align-items:center">
           <button type="submit" class="btn btn-primary" <?= !$reqOk ? 'disabled' : '' ?>>
             &#9654; ติดตั้งฐานข้อมูล
@@ -479,7 +563,6 @@ a { color: #7A1E28; }
 
   <?php endif; ?>
 </div>
-<?php endif; ?>
 
 </body>
 </html>
