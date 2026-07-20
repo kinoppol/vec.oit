@@ -128,6 +128,7 @@ match ($action) {
     'reorder_evidence' => reorderEvidence(),
     'upload_emblem'    => uploadEmblem(),
     'add_user'         => addUser(),
+    'update_user_position' => updateUserPosition(),
     'update_rms_url'   => updateRmsUrl(),
     'rms_ping'         => rmsPing(),
     'import_rms_users' => importRmsUsers(),
@@ -443,6 +444,23 @@ function toggleUser(): never {
 
     db()->prepare('UPDATE users SET status = ? WHERE id = ?')->execute([$status, $uid]);
     json_ok();
+}
+
+function updateUserPosition(): never {
+    global $schoolId, $role;
+    if ($role !== 'schooladmin') json_err('Forbidden', 403);
+    $uid = (int)($_POST['user_id'] ?? 0);
+    $pos = trim($_POST['position'] ?? '');
+    if (!$uid) json_err('Missing user');
+    if (mb_strlen($pos) > 150) json_err('ตำแหน่งยาวเกินไป');
+
+    // Must belong to this school
+    $chk = db()->prepare('SELECT id FROM users WHERE id = ? AND school_id = ?');
+    $chk->execute([$uid, $schoolId]);
+    if (!$chk->fetch()) json_err('ไม่พบผู้ใช้ในสถานศึกษานี้', 404);
+
+    db()->prepare('UPDATE users SET position = ? WHERE id = ?')->execute([$pos ?: null, $uid]);
+    json_ok(['position' => $pos]);
 }
 
 function updateRmsUrl(): never {

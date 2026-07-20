@@ -422,6 +422,11 @@ a.ev-name:hover { text-decoration: underline; }
 .rms-url-row .btn { flex-shrink: 0; }
 .user-email { font-size: 12px; color: var(--text-tertiary); margin-top: 2px; }
 .user-nick { font-size: 12.5px; color: var(--text-tertiary); margin-left: 4px; }
+.user-position { white-space: nowrap; }
+.user-position .pos-text { vertical-align: middle; }
+.user-position .pos-empty { color: var(--text-tertiary); font-style: italic; }
+.user-position .pos-edit { display: inline-flex; vertical-align: middle; margin-left: 6px; width: 26px; height: 26px; }
+.user-position .pos-edit svg { width: 12px; height: 12px; }
 
 /* ── Users search + pagination ── */
 .users-toolbar { display: flex; align-items: center; gap: 10px; }

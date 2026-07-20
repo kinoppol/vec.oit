@@ -60,6 +60,7 @@ $users = $stmt->fetchAll();
             <th>ชื่อ-นามสกุล</th>
             <th>เลขประจำตัวประชาชน</th>
             <th>บทบาท</th>
+            <th>ตำแหน่ง</th>
             <th>สถานะ</th>
             <th>วันที่สร้าง</th>
             <th></th>
@@ -67,7 +68,7 @@ $users = $stmt->fetchAll();
         </thead>
         <tbody>
           <?php foreach ($users as $u): ?>
-          <tr class="user-row" data-search="<?= e(mb_strtolower(($u['full_name'] ?? '') . ' ' . ($u['nickname'] ?? '') . ' ' . ($u['national_id'] ?? '') . ' ' . ($u['email'] ?? ''))) ?>">
+          <tr class="user-row" data-search="<?= e(mb_strtolower(($u['full_name'] ?? '') . ' ' . ($u['nickname'] ?? '') . ' ' . ($u['national_id'] ?? '') . ' ' . ($u['email'] ?? '') . ' ' . ($u['position'] ?? ''))) ?>">
             <td>
               <?= e($u['full_name']) ?>
               <?php if (!empty($u['nickname'])): ?><span class="user-nick">(<?= e($u['nickname']) ?>)</span><?php endif; ?>
@@ -79,6 +80,13 @@ $users = $stmt->fetchAll();
               'centraladmin' => 'ผู้ดูแลส่วนกลาง',
               default        => 'ผู้กรอกข้อมูล'
             }) ?></td>
+            <td class="user-position" data-uid="<?= $u['id'] ?>">
+              <span class="pos-text"><?php if (!empty($u['position'])): ?><?= e($u['position']) ?><?php else: ?><span class="pos-empty">— กำหนด</span><?php endif; ?></span>
+              <button class="icon-btn pos-edit" title="แก้ไขตำแหน่ง"
+                      onclick="editPosition(<?= $u['id'] ?>, <?= e(json_encode($u['position'] ?? '', JSON_UNESCAPED_UNICODE)) ?>, <?= e(json_encode($u['full_name'], JSON_UNESCAPED_UNICODE)) ?>)">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </button>
+            </td>
             <td>
               <?php if ($u['status'] === 'pending'): ?>
               <span class="chip chip-pend">รออนุมัติ</span>
@@ -178,8 +186,58 @@ $users = $stmt->fetchAll();
   </div>
 </div>
 
+<!-- ─── EDIT POSITION MODAL ─── -->
+<div class="modal-backdrop hidden" id="posModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">กำหนดตำแหน่ง</h2>
+      <button class="modal-close" onclick="document.getElementById('posModal').classList.add('hidden')">✕</button>
+    </div>
+    <form id="posForm" class="modal-body">
+      <input type="hidden" id="posUserId">
+      <div class="alert alert-info" style="margin-bottom:16px">
+        ตำแหน่งของ <strong id="posUserName"></strong> — ค่านี้จะไม่ถูกล้างเมื่อโอนข้อมูลจาก RMS ใหม่
+      </div>
+      <div class="form-group">
+        <label class="form-label">ตำแหน่ง</label>
+        <input type="text" id="posInput" class="form-input" maxlength="150" placeholder="เช่น ครู, หัวหน้างานพัสดุ, รองผู้อำนวยการ">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="document.getElementById('posModal').classList.add('hidden')">ยกเลิก</button>
+        <button type="submit" class="btn btn-primary">บันทึก</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
 const RMS_API_PATH = '<?= RMS_API_PATH ?>';
+
+// ── Edit user position ──
+function editPosition(userId, current, name) {
+    document.getElementById('posUserId').value = userId;
+    document.getElementById('posUserName').textContent = name;
+    document.getElementById('posInput').value = current || '';
+    document.getElementById('posModal').classList.remove('hidden');
+    setTimeout(() => document.getElementById('posInput').focus(), 50);
+}
+document.getElementById('posForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const uid = document.getElementById('posUserId').value;
+    const pos = document.getElementById('posInput').value.trim();
+    apiPost({ action:'update_user_position', user_id: uid, position: pos }).then(r => {
+        if (!r.ok) { showToast(r.error, 'error'); return; }
+        const cell = document.querySelector('.user-position[data-uid="' + uid + '"] .pos-text');
+        if (cell) {
+            if (pos) cell.textContent = pos;
+            else cell.innerHTML = '<span class="pos-empty">— กำหนด</span>';
+        }
+        const row = document.querySelector('.user-position[data-uid="' + uid + '"]')?.closest('.user-row');
+        if (row) row.dataset.search = (row.dataset.search + ' ' + pos.toLowerCase());
+        document.getElementById('posModal').classList.add('hidden');
+        showToast('บันทึกตำแหน่งแล้ว');
+    });
+});
 
 // ── RMS import settings ──
 (function () {
