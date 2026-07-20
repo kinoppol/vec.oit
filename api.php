@@ -21,9 +21,11 @@ if ($action === 'indicator_detail') {
     }
 
     $stmt = db()->prepare('
-        SELECT ind.*, COALESCE(sis.status,"pending") AS status, sis.note AS status_note
+        SELECT ind.*, COALESCE(sis.status,"pending") AS status, sis.note AS status_note,
+               sis.assigned_user_id, au.full_name AS assignee_name
         FROM indicators ind
         LEFT JOIN school_indicator_status sis ON sis.indicator_id = ind.id AND sis.school_id = :sid
+        LEFT JOIN users au ON au.id = sis.assigned_user_id
         WHERE ind.id = :id
     ');
     $stmt->execute([':id' => $id, ':sid' => $schoolId]);
@@ -33,6 +35,16 @@ if ($action === 'indicator_detail') {
     $evStmt = db()->prepare('SELECT * FROM evidences WHERE indicator_id = ? AND school_id = ? ORDER BY created_at DESC');
     $evStmt->execute([$id, $schoolId]);
     $evidences = $evStmt->fetchAll();
+
+    // Assignment: only a schooladmin may (re)assign; load same-school users for the picker
+    $panelRole = $authUser['role'];
+    $canAssign = ($panelRole === 'schooladmin');
+    $schoolUsers = [];
+    if ($canAssign) {
+        $uStmt = db()->prepare('SELECT id, full_name, role FROM users WHERE school_id = ? AND status = "active" ORDER BY role DESC, full_name');
+        $uStmt->execute([$schoolId]);
+        $schoolUsers = $uStmt->fetchAll();
+    }
 
     ob_start();
     include __DIR__ . '/includes/detail_panel.php';
@@ -108,6 +120,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 match ($action) {
     'update_status'    => updateStatus(),
+    'assign_indicator' => assignIndicator(),
+    'update_slug'      => updateSlug(),
     'add_evidence'     => addEvidence(),
     'edit_evidence'    => editEvidence(),
     'delete_evidence'  => deleteEvidence(),
@@ -142,6 +156,54 @@ function updateStatus(): never {
     ')->execute([$schoolId, $indId, $status, $note]);
 
     json_ok();
+}
+
+function assignIndicator(): never {
+    global $schoolId, $role;
+    if ($role !== 'schooladmin') json_err('Forbidden', 403);
+
+    $indId  = (int)($_POST['indicator_id'] ?? 0);
+    $userId = (int)($_POST['user_id'] ?? 0); // 0 = unassign
+    if (!$indId) json_err('Missing indicator');
+
+    $assignee = null;
+    if ($userId > 0) {
+        // The assignee must belong to this school
+        $chk = db()->prepare('SELECT id FROM users WHERE id = ? AND school_id = ?');
+        $chk->execute([$userId, $schoolId]);
+        if (!$chk->fetch()) json_err('ผู้ใช้ไม่อยู่ในสถานศึกษานี้', 400);
+        $assignee = $userId;
+    }
+
+    // Upsert the status row (keeps existing status; only sets the assignee)
+    db()->prepare('
+        INSERT INTO school_indicator_status (school_id, indicator_id, assigned_user_id)
+        VALUES (?, ?, ?)
+        ON DUPLICATE KEY UPDATE assigned_user_id = VALUES(assigned_user_id), updated_at = NOW()
+    ')->execute([$schoolId, $indId, $assignee]);
+
+    json_ok();
+}
+
+function updateSlug(): never {
+    global $schoolId, $role;
+    if ($role !== 'schooladmin') json_err('Forbidden', 403);
+
+    $raw = trim($_POST['slug'] ?? '');
+    // URL-safe: collapse whitespace to dashes, strip characters that break a URL path
+    $slug = preg_replace('/\s+/u', '-', $raw);
+    $slug = preg_replace('~[/\\\\?#&%<>"\'=+\s]+~u', '', $slug);
+    $slug = trim($slug, '-');
+    if ($slug === '' || mb_strlen($slug) > 120) json_err('slug ไม่ถูกต้อง (1–120 ตัวอักษร)');
+
+    // Unique across other schools
+    $chk = db()->prepare('SELECT id FROM schools WHERE slug = ? AND id <> ?');
+    $chk->execute([$slug, $schoolId]);
+    if ($chk->fetch()) json_err('slug นี้ถูกใช้แล้ว กรุณาเลือกใหม่');
+
+    db()->prepare('UPDATE schools SET slug = ? WHERE id = ?')->execute([$slug, $schoolId]);
+    $_SESSION['user']['school']['slug'] = $slug; // keep session in sync
+    json_ok(['slug' => $slug]);
 }
 
 function addEvidence(): never {

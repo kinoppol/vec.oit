@@ -117,13 +117,15 @@ function indicator_tree(int $schoolId, string $yearCode): array
                sub.id AS sub_id, sub.code AS sub_code, sub.title AS sub_title, sub.sort_order AS us,
                ind.id AS ind_id, ind.code AS ind_code, ind.title AS ind_title,
                ind.criteria, ind.sort_order AS is_,
-               COALESCE(sis.status,"pending") AS status
+               COALESCE(sis.status,"pending") AS status,
+               sis.assigned_user_id, au.full_name AS assignee_name
         FROM indicators ind
         JOIN indicator_subsections sub ON sub.id = ind.subsection_id
         JOIN indicator_sections sec    ON sec.id = sub.section_id
         JOIN fiscal_years fy           ON fy.id  = sec.fiscal_year_id
         LEFT JOIN school_indicator_status sis
                ON sis.indicator_id = ind.id AND sis.school_id = :sid
+        LEFT JOIN users au ON au.id = sis.assigned_user_id
         WHERE fy.year_code = :yr
         ORDER BY sec.sort_order, sub.sort_order, ind.sort_order
     ');
@@ -160,6 +162,8 @@ function indicator_tree(int $schoolId, string $yearCode): array
             'criteria' => $r['criteria'],
             'status'   => $r['status'],
             'ev_count' => $ec[$r['ind_id']] ?? 0,
+            'assigned_user_id' => $r['assigned_user_id'] ? (int)$r['assigned_user_id'] : null,
+            'assignee_name'    => $r['assignee_name'] ?? null,
         ];
     }
     foreach ($tree as &$s) {

@@ -43,6 +43,11 @@ $users = $stmt->fetchAll();
           <button class="btn btn-ghost btn-xs" onclick="copyPublicLink()" title="คัดลอกลิงก์">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
           </button>
+          <?php if ($role === 'schooladmin'): ?>
+          <button class="btn btn-ghost btn-xs" onclick="openEditSlug()" title="แก้ไข slug">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <?php endif; ?>
         </div>
         <?php endif; ?>
       </div>
@@ -180,9 +185,54 @@ $users = $stmt->fetchAll();
   </div>
 </div>
 
+<?php if ($role === 'schooladmin'): ?>
+<!-- ─── EDIT SLUG MODAL ─── -->
+<div class="modal-backdrop hidden" id="slugModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">แก้ไขลิงก์สาธารณะ (slug)</h2>
+      <button class="modal-close" onclick="document.getElementById('slugModal').classList.add('hidden')">✕</button>
+    </div>
+    <form id="slugForm" class="modal-body">
+      <?= csrf_field() ?>
+      <input type="hidden" name="action" value="update_slug">
+      <div class="alert alert-info" style="margin-bottom:16px">
+        slug คือส่วนท้าย URL ของหน้าสาธารณะ ใช้ตัวอักษร/ตัวเลข/ขีด (-) หลีกเลี่ยงเว้นวรรคและอักขระพิเศษ
+      </div>
+      <div class="form-group">
+        <label class="form-label">slug <span class="req">*</span></label>
+        <input type="text" name="slug" id="slugInput" class="form-input" required maxlength="120"
+               value="<?= e($school['slug'] ?? '') ?>">
+        <div class="form-hint">ตัวอย่าง: <?= APP_URL ?>/public.php?slug=<b id="slugPreview"><?= e($school['slug'] ?? '') ?></b></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="document.getElementById('slugModal').classList.add('hidden')">ยกเลิก</button>
+        <button type="submit" class="btn btn-primary">บันทึก</button>
+      </div>
+    </form>
+  </div>
+</div>
+<?php endif; ?>
+
 <script>
 function openAddUser()  { document.getElementById('addUserModal').classList.remove('hidden'); }
 function closeAddUser() { document.getElementById('addUserModal').classList.add('hidden'); }
+
+function openEditSlug() { document.getElementById('slugModal')?.classList.remove('hidden'); }
+(function () {
+    const form = document.getElementById('slugForm');
+    if (!form) return;
+    const input = document.getElementById('slugInput');
+    const prev  = document.getElementById('slugPreview');
+    input.addEventListener('input', () => { prev.textContent = input.value.trim(); });
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const fd = new FormData(this);
+        fetch(APP_URL + '/api.php', { method:'POST', body: fd })
+            .then(r => r.json())
+            .then(r => { r.ok ? location.reload() : showToast(r.error, 'error'); });
+    });
+})();
 
 async function resetPassword(userId, name) {
     if (!await uiConfirm('รีเซ็ตรหัสผ่านของ ' + name + ' เป็นรหัสใหม่?',

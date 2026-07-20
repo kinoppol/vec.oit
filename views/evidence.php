@@ -39,6 +39,12 @@ $selectedId = isset($_GET['indicator']) ? (int)$_GET['indicator'] : 0;
               <span class="ev-badge"><?= $ind['ev_count'] ?> หลักฐาน</span>
               <?php endif; ?>
             </div>
+            <?php if (!empty($ind['assignee_name'])): ?>
+            <div class="tree-ind-assignee" title="ผู้รับผิดชอบ">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              <?= e($ind['assignee_name']) ?>
+            </div>
+            <?php endif; ?>
           </div>
           <?php endforeach; ?>
           <?php endforeach; ?>

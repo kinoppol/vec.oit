@@ -165,6 +165,16 @@ function updateStatus(indId, status) {
     });
 }
 
+// ── Assign responsible user ───────────────────────────────
+function assignIndicator(indId, userId) {
+    apiPost({ action: 'assign_indicator', indicator_id: indId, user_id: userId }).then(r => {
+        if (r.ok) {
+            showToast(userId > 0 ? 'มอบหมายผู้รับผิดชอบแล้ว' : 'ยกเลิกการมอบหมายแล้ว');
+            if (window.selectedIndicatorId) loadIndicator(window.selectedIndicatorId);
+        } else { showToast(r.error, 'error'); }
+    });
+}
+
 // ── Evidence Modal ────────────────────────────────────────
 function openEvModal(indId) {
     const modal = document.getElementById('evModal');

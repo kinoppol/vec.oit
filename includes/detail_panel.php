@@ -41,6 +41,30 @@
     <?php endif; ?>
   </div>
 
+  <!-- RESPONSIBLE USER -->
+  <div class="detail-section">
+    <div class="detail-section-hdr">ผู้รับผิดชอบ</div>
+    <?php if (!empty($canAssign)): ?>
+    <select class="form-input assignee-select" onchange="assignIndicator(<?= (int)$ind['id'] ?>, this.value)">
+      <option value="0">— ยังไม่มอบหมาย —</option>
+      <?php foreach (($schoolUsers ?? []) as $su): ?>
+      <option value="<?= (int)$su['id'] ?>" <?= (int)($ind['assigned_user_id'] ?? 0) === (int)$su['id'] ? 'selected' : '' ?>>
+        <?= e($su['full_name']) ?><?= $su['role'] === 'schooladmin' ? ' (ผู้ดูแล)' : '' ?>
+      </option>
+      <?php endforeach; ?>
+    </select>
+    <?php else: ?>
+    <div class="assignee-display">
+      <?php if (!empty($ind['assignee_name'])): ?>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <?= e($ind['assignee_name']) ?>
+      <?php else: ?>
+        <span class="assignee-none">ยังไม่มีการมอบหมายผู้รับผิดชอบ</span>
+      <?php endif; ?>
+    </div>
+    <?php endif; ?>
+  </div>
+
   <!-- EVIDENCE LIST -->
   <div class="detail-section" id="evSection<?= $ind['id'] ?>">
     <div class="detail-section-hdr">
