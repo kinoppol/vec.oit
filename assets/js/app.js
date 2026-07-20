@@ -39,6 +39,7 @@ function uiConfirm(message, opts = {}) {
         okBtn.focus();
 
         const cleanup = result => {
+            if (document.activeElement && overlay.contains(document.activeElement)) document.activeElement.blur();
             overlay.classList.remove('show');
             overlay.setAttribute('aria-hidden', 'true');
             setTimeout(() => overlay.classList.add('hidden'), 180);

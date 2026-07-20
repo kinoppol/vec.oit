@@ -464,26 +464,31 @@ function updateRmsUrl(): never {
     json_ok(['rms_base_url' => $url]);
 }
 
-/** Fetch an external URL, returning the body or null on failure */
-function rms_fetch(string $url): ?string {
+/** Fetch an external URL. Returns the body, or null on failure with $err set. */
+function rms_fetch(string $url, ?string &$err = null): ?string {
+    $err = null;
     if (function_exists('curl_init')) {
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => 25,
-            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_TIMEOUT        => 20,
+            CURLOPT_CONNECTTIMEOUT => 8,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_MAXREDIRS      => 3,
             CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_USERAGENT      => 'OIT-RMS-Import/1.0',
         ]);
         $res  = curl_exec($ch);
-        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        if ($res === false) $err = 'เชื่อมต่อไม่สำเร็จ: ' . curl_error($ch);
+        elseif ($code >= 400) $err = 'แหล่งข้อมูลตอบกลับสถานะ HTTP ' . $code;
         curl_close($ch);
-        return ($res === false || $code >= 400) ? null : $res;
+        return $err === null ? $res : null;
     }
-    $ctx = stream_context_create(['http' => ['timeout' => 25], 'https' => ['timeout' => 25]]);
+    $ctx = stream_context_create(['http' => ['timeout' => 20], 'https' => ['timeout' => 20]]);
     $res = @file_get_contents($url, false, $ctx);
-    return $res === false ? null : $res;
+    if ($res === false) { $err = 'เชื่อมต่อแหล่งข้อมูลไม่สำเร็จ (file_get_contents)'; return null; }
+    return $res;
 }
 
 function importRmsUsers(): never {
@@ -500,9 +505,11 @@ function importRmsUsers(): never {
     }
     if ($base === '') json_err('ยังไม่ได้ตั้งค่า URL แหล่งข้อมูล RMS ในเมนูตั้งค่า');
 
+    @set_time_limit(180); // hashing many users can take a while
+
     $endpoint = rtrim($base, '/') . RMS_API_PATH;
-    $raw = rms_fetch($endpoint);
-    if ($raw === null) json_err('เชื่อมต่อแหล่งข้อมูล RMS ไม่สำเร็จ', 502);
+    $raw = rms_fetch($endpoint, $fetchErr);
+    if ($raw === null) json_err('เชื่อมต่อแหล่งข้อมูล RMS ไม่สำเร็จ — ' . ($fetchErr ?? ''), 502);
 
     $data = json_decode($raw, true);
     $people = null;
@@ -511,7 +518,10 @@ function importRmsUsers(): never {
         elseif (!empty($data['data'])   && is_array($data['data']))   $people = $data['data'];
         elseif (!empty($data['people']) && is_array($data['people'])) $people = $data['people'];
     }
-    if ($people === null) json_err('รูปแบบข้อมูลจาก RMS ไม่ถูกต้อง (คาดว่าเป็น JSON array ของผู้ใช้)');
+    if ($people === null) {
+        $peek = trim(mb_substr(strip_tags($raw), 0, 120));
+        json_err('รูปแบบข้อมูลจาก RMS ไม่ถูกต้อง (ต้องเป็น JSON array ของผู้ใช้) — ได้รับ: ' . $peek);
+    }
 
     // created_at is intentionally NOT in the UPDATE clause → preserved on re-import
     try {
