@@ -264,14 +264,26 @@ function closeAddUser() { document.getElementById('addUserModal').classList.add(
         e.preventDefault();
         fetch(APP_URL + '/api.php', { method:'POST', body: new FormData(this) })
             .then(r => r.json())
-            .then(r => showToast(r.ok ? 'บันทึก URL แล้ว' : r.error, r.ok ? 'ok' : 'error'));
+            .then(r => {
+                if (r.ok) { showToast('บันทึก URL แล้ว'); setTimeout(() => location.reload(), 700); }
+                else showToast(r.error, 'error');
+            });
     });
 })();
 
+// Persist the current URL, then run the import (so typing + โอน works without a separate save)
+function saveRmsUrl() {
+    return apiPost({ action:'update_rms_url', rms_base_url: document.getElementById('rmsBaseUrl').value.trim() });
+}
+
 async function importRms() {
-    if (!await uiConfirm('ดึงและโอนข้อมูลผู้ใช้จากระบบ RMS เข้าสถานศึกษานี้?\nผู้ใช้ที่มีอยู่แล้วจะถูกปรับปรุงข้อมูล (รหัสผ่านจาก RMS)',
+    const url = document.getElementById('rmsBaseUrl').value.trim();
+    if (!url) { showToast('กรุณาระบุ URL แหล่งข้อมูล RMS ก่อน', 'error'); return; }
+    if (!await uiConfirm('ดึงและโอนข้อมูลผู้ใช้จากระบบ RMS เข้าสถานศึกษานี้?\nURL นี้จะถูกบันทึกไว้ใช้ในการโอนครั้งต่อไปด้วย\nผู้ใช้ที่มีอยู่แล้วจะถูกปรับปรุงข้อมูล (รหัสผ่านจาก RMS)',
         { title:'โอนข้อมูลผู้ใช้จาก RMS', confirmLabel:'โอนข้อมูล' })) return;
     showToast('กำลังดึงข้อมูลจาก RMS…');
+    const saved = await saveRmsUrl();
+    if (!saved.ok) { showToast(saved.error, 'error'); return; }
     apiPost({ action:'import_rms_users' }).then(r => {
         if (r.ok) {
             const d = r.data;
