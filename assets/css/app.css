@@ -415,6 +415,53 @@ a.ev-name:hover { text-decoration: underline; }
 .ev-actions { margin-left: auto; display: flex; gap: 5px; flex-shrink: 0; }
 .form-hint { font-size: 12px; color: var(--text-tertiary); margin-top: 6px; }
 
+/* ── Tracking / assignment summary ── */
+.track-layout { display: flex; flex-direction: column; gap: 16px; }
+.track-summary { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px 24px; }
+.track-metric { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; }
+.track-ring svg { width: 110px; height: 110px; flex-shrink: 0; }
+.track-stat-grid { display: grid; grid-template-columns: repeat(6, minmax(80px, 1fr)); gap: 12px; flex: 1; }
+.track-stat { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 12px; text-align: center; }
+.track-n { display: block; font-size: 24px; font-weight: 800; color: var(--text-primary); line-height: 1; }
+.track-l { display: block; font-size: 11.5px; color: var(--text-tertiary); margin-top: 6px; }
+.track-done .track-n { color: var(--success); }
+.track-prog .track-n { color: var(--warning); }
+.track-warn { border-color: var(--danger); }
+.track-warn .track-n { color: var(--danger); }
+
+.track-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.track-toolbar .form-input { flex: 1; min-width: 220px; }
+.track-filter { display: flex; gap: 6px; flex-wrap: wrap; }
+.track-fbtn { padding: 7px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); color: var(--text-secondary); font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.track-fbtn:hover { border-color: var(--border-strong); }
+.track-fbtn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+.track-groups { display: flex; flex-direction: column; gap: 14px; }
+.track-group { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; }
+.track-group-hdr { display: flex; align-items: center; gap: 12px; }
+.track-avatar { width: 38px; height: 38px; flex-shrink: 0; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: var(--surface-3); color: var(--text-secondary); }
+.track-avatar-position { background: color-mix(in srgb, var(--primary) 12%, transparent); color: var(--primary); }
+.track-avatar-user { background: color-mix(in srgb, var(--success) 14%, transparent); color: var(--success); }
+.track-avatar-none { background: var(--danger-soft); color: var(--danger); }
+.track-group-title { flex: 1; min-width: 0; }
+.track-group-name { font-size: 15px; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 8px; }
+.track-typetag { font-size: 11px; font-weight: 700; color: var(--primary); background: var(--danger-soft); padding: 1px 8px; border-radius: 10px; }
+.track-group-sub { font-size: 12.5px; color: var(--text-tertiary); margin-top: 2px; }
+.track-group-pct { font-size: 20px; font-weight: 800; color: var(--primary); flex-shrink: 0; }
+.track-bar { height: 6px; border-radius: 20px; background: var(--surface-3); overflow: hidden; margin: 12px 0; }
+.track-bar span { display: block; height: 100%; border-radius: 20px; background: linear-gradient(90deg, var(--primary), var(--warning)); }
+.track-inds { display: flex; flex-direction: column; gap: 6px; }
+.track-ind { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2); border-left: 3px solid var(--border-strong); }
+.track-ind:hover { border-color: var(--border-strong); background: var(--surface-3); }
+.track-ind.status-done { border-left-color: var(--success); }
+.track-ind.status-inprogress { border-left-color: var(--warning); }
+.track-ind-code { font-size: 12px; font-weight: 800; color: var(--primary); flex-shrink: 0; min-width: 34px; }
+.track-ind-title { flex: 1; font-size: 13.5px; font-weight: 600; color: var(--text-primary); min-width: 0; }
+.track-ind-ev { font-size: 11.5px; color: var(--text-tertiary); flex-shrink: 0; }
+.track-empty { padding: 40px; text-align: center; color: var(--text-tertiary); }
+
+@media (max-width: 720px) { .track-stat-grid { grid-template-columns: repeat(3, 1fr); } }
+
 /* ── RMS import settings ── */
 .card-body { padding: 18px; }
 .rms-url-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
