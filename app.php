@@ -86,7 +86,7 @@ $publicLink = APP_URL . '/public.php?slug=' . ($school['slug'] ?? '') . '&year='
 <title><?= e($pageTitle) ?> — <?= APP_NAME ?></title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="<?= APP_URL ?>/assets/css/app.css">
+<link rel="stylesheet" href="<?= asset('/assets/css/app.css') ?>">
 </head>
 <body>
 
@@ -206,6 +206,6 @@ const SCHOOL_ID = <?= $schoolId ?>;
 const YEAR_CODE = '<?= e($yearCode) ?>';
 const USER_ROLE = '<?= e($role) ?>';
 </script>
-<script src="<?= APP_URL ?>/assets/js/app.js"></script>
+<script src="<?= asset('/assets/js/app.js') ?>"></script>
 </body>
 </html>

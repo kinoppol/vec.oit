@@ -65,7 +65,7 @@ $pctDash = $circ * $r / 100;
 <title>OIT — <?= e($school['name']) ?> ปี <?= e($yearCode) ?></title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="<?= APP_URL ?>/assets/css/public.css">
+<link rel="stylesheet" href="<?= asset('/assets/css/public.css') ?>">
 </head>
 <body>
 

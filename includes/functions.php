@@ -5,6 +5,15 @@ function e(mixed $v): string
     return htmlspecialchars((string)$v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
+/** Asset URL with a cache-busting ?v=<mtime> so deploys always load fresh CSS/JS */
+function asset(string $relPath): string
+{
+    $rel  = '/' . ltrim($relPath, '/');
+    $full = APP_ROOT . $rel;
+    $ver  = is_file($full) ? filemtime($full) : date('Ymd');
+    return APP_URL . $rel . '?v=' . $ver;
+}
+
 function csrf_token(): string
 {
     if (empty($_SESSION['csrf'])) {
