@@ -286,7 +286,7 @@ async function pingRms() {
     const r = await apiPost({ action:'rms_ping', rms_base_url: url });
     if (!r.ok) { out.textContent = '❌ ' + r.error; return; }
     const d = r.data;
-    if (!d.ok) { out.textContent = '❌ เชื่อมต่อไม่สำเร็จ (' + d.ms + 'ms)\n' + d.endpoint + '\n' + d.error; return; }
+    if (!d.ok) { out.textContent = '❌ เชื่อมต่อไม่สำเร็จ (' + d.ms + 'ms)\n' + d.endpoint + '\n' + d.error + (d.env ? '\n[' + d.env + ']' : ''); return; }
     out.textContent = '✅ เชื่อมต่อสำเร็จ (' + d.ms + 'ms, ' + d.bytes + ' bytes)\n'
         + (d.is_json ? ('เป็น JSON' + (d.count !== null ? ' · พบ ' + d.count + ' รายการ' : ' · ไม่พบ array ผู้ใช้'))
                      : ('⚠ ไม่ใช่ JSON — ได้รับ: ' + d.peek));

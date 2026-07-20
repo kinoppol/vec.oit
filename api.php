@@ -487,12 +487,21 @@ function rms_fetch(string $url, ?string &$err = null, int $timeout = 20): ?strin
         curl_close($ch);
         return $err === null ? $res : null;
     }
+    if (!ini_get('allow_url_fopen')) {
+        $err = 'เซิร์ฟเวอร์ไม่ได้เปิด cURL และ allow_url_fopen — ไม่สามารถเรียก URL ภายนอกได้ '
+             . '(กรุณาเปิดส่วนขยาย php_curl หรือ allow_url_fopen ในการตั้งค่า PHP)';
+        return null;
+    }
     $ctx = stream_context_create([
-        'http'  => ['timeout' => $timeout],
-        'https' => ['timeout' => $timeout],
+        'http'  => ['timeout' => $timeout, 'ignore_errors' => true],
+        'https' => ['timeout' => $timeout, 'ignore_errors' => true],
     ]);
     $res = @file_get_contents($url, false, $ctx);
-    if ($res === false) { $err = 'เชื่อมต่อแหล่งข้อมูลไม่สำเร็จ (file_get_contents)'; return null; }
+    if ($res === false) {
+        $last = error_get_last();
+        $err  = 'file_get_contents ล้มเหลว: ' . ($last['message'] ?? 'unknown');
+        return null;
+    }
     return $res;
 }
 
@@ -512,11 +521,13 @@ function rmsPing(): never {
     if ($base === '') json_err('ยังไม่ได้ระบุ URL แหล่งข้อมูล RMS');
 
     $endpoint = $base . RMS_API_PATH;
+    $env = 'cURL=' . (function_exists('curl_init') ? 'มี' : 'ไม่มี')
+         . ', allow_url_fopen=' . (ini_get('allow_url_fopen') ? 'เปิด' : 'ปิด');
     $t0 = microtime(true);
     $raw = rms_fetch($endpoint, $err, 8); // short probe
     $ms  = round((microtime(true) - $t0) * 1000);
 
-    if ($raw === null) json_ok(['ok' => false, 'endpoint' => $endpoint, 'ms' => $ms, 'error' => $err]);
+    if ($raw === null) json_ok(['ok' => false, 'endpoint' => $endpoint, 'ms' => $ms, 'error' => $err, 'env' => $env]);
 
     $data = json_decode($raw, true);
     $count = null;
