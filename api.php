@@ -454,7 +454,12 @@ function updateRmsUrl(): never {
         $url = rtrim($url, '/');
         if (mb_strlen($url) > 300) json_err('URL ยาวเกินไป');
     }
-    db()->prepare('UPDATE schools SET rms_base_url = ? WHERE id = ?')->execute([$url ?: null, $schoolId]);
+    try {
+        db()->prepare('UPDATE schools SET rms_base_url = ? WHERE id = ?')->execute([$url ?: null, $schoolId]);
+    } catch (PDOException $e) {
+        if (($e->errorInfo[1] ?? 0) === 1054) json_err('ฐานข้อมูลยังไม่มีคอลัมน์ rms_base_url — กรุณารัน migrate.php ก่อน', 500);
+        throw $e;
+    }
     $_SESSION['user']['school']['rms_base_url'] = $url ?: null;
     json_ok(['rms_base_url' => $url]);
 }
@@ -485,9 +490,14 @@ function importRmsUsers(): never {
     global $schoolId, $role;
     if ($role !== 'schooladmin') json_err('Forbidden', 403);
 
-    $stmt = db()->prepare('SELECT rms_base_url FROM schools WHERE id = ?');
-    $stmt->execute([$schoolId]);
-    $base = trim((string)$stmt->fetchColumn());
+    try {
+        $stmt = db()->prepare('SELECT rms_base_url FROM schools WHERE id = ?');
+        $stmt->execute([$schoolId]);
+        $base = trim((string)$stmt->fetchColumn());
+    } catch (PDOException $e) {
+        if (($e->errorInfo[1] ?? 0) === 1054) json_err('ฐานข้อมูลยังไม่มีคอลัมน์สำหรับ RMS — กรุณารัน migrate.php ก่อน', 500);
+        throw $e;
+    }
     if ($base === '') json_err('ยังไม่ได้ตั้งค่า URL แหล่งข้อมูล RMS ในเมนูตั้งค่า');
 
     $endpoint = rtrim($base, '/') . RMS_API_PATH;
@@ -504,15 +514,20 @@ function importRmsUsers(): never {
     if ($people === null) json_err('รูปแบบข้อมูลจาก RMS ไม่ถูกต้อง (คาดว่าเป็น JSON array ของผู้ใช้)');
 
     // created_at is intentionally NOT in the UPDATE clause → preserved on re-import
-    $ins = db()->prepare('
-        INSERT INTO users (school_id, national_id, password_hash, full_name, email, role, status, must_change_pw)
-        VALUES (?, ?, ?, ?, ?, "user", "active", 0)
-        ON DUPLICATE KEY UPDATE
-          full_name     = VALUES(full_name),
-          email         = VALUES(email),
-          password_hash = VALUES(password_hash),
-          school_id     = VALUES(school_id)
-    ');
+    try {
+        $ins = db()->prepare('
+            INSERT INTO users (school_id, national_id, password_hash, full_name, email, role, status, must_change_pw)
+            VALUES (?, ?, ?, ?, ?, "user", "active", 0)
+            ON DUPLICATE KEY UPDATE
+              full_name     = VALUES(full_name),
+              email         = VALUES(email),
+              password_hash = VALUES(password_hash),
+              school_id     = VALUES(school_id)
+        ');
+    } catch (PDOException $e) {
+        if (($e->errorInfo[1] ?? 0) === 1054) json_err('ฐานข้อมูลยังไม่มีคอลัมน์ users.email — กรุณารัน migrate.php ก่อน', 500);
+        throw $e;
+    }
 
     $new = 0; $upd = 0; $skipped = 0;
     foreach ($people as $p) {
