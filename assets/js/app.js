@@ -11,6 +11,57 @@ function showToast(msg, type = 'ok') {
     toastTimer = setTimeout(() => { el.className = 'toast hidden'; }, 3000);
 }
 
+// ── Confirm modal ─────────────────────────────────────────
+// uiConfirm('message', { title, confirmLabel, danger }) → Promise<boolean>
+function uiConfirm(message, opts = {}) {
+    return new Promise(resolve => {
+        const overlay = document.getElementById('confirmOverlay');
+        if (!overlay) { resolve(window.confirm(message)); return; }
+
+        const msgEl   = document.getElementById('confirmMsg');
+        const titleEl = document.getElementById('confirmTitle');
+        const okBtn   = document.getElementById('confirmOk');
+        const cnclBtn = document.getElementById('confirmCancel');
+        const iconEl  = document.getElementById('confirmIcon');
+
+        msgEl.textContent   = message;
+        titleEl.textContent = opts.title || 'ยืนยันการทำรายการ';
+        okBtn.textContent   = opts.confirmLabel || 'ยืนยัน';
+        const danger = !!opts.danger;
+        okBtn.classList.toggle('btn-modal-danger', danger);
+        okBtn.classList.toggle('btn-modal-primary', !danger);
+        iconEl.classList.toggle('modal-icon-danger', danger);
+
+        overlay.classList.remove('hidden');
+        overlay.setAttribute('aria-hidden', 'false');
+        void overlay.offsetWidth; // force reflow so the transition plays reliably
+        overlay.classList.add('show');
+        okBtn.focus();
+
+        const cleanup = result => {
+            overlay.classList.remove('show');
+            overlay.setAttribute('aria-hidden', 'true');
+            setTimeout(() => overlay.classList.add('hidden'), 180);
+            okBtn.removeEventListener('click', onOk);
+            cnclBtn.removeEventListener('click', onCancel);
+            overlay.removeEventListener('mousedown', onBackdrop);
+            document.removeEventListener('keydown', onKey);
+            resolve(result);
+        };
+        const onOk       = () => cleanup(true);
+        const onCancel   = () => cleanup(false);
+        const onBackdrop = e => { if (e.target === overlay) cleanup(false); };
+        const onKey      = e => {
+            if (e.key === 'Escape') cleanup(false);
+            else if (e.key === 'Enter') cleanup(true);
+        };
+        okBtn.addEventListener('click', onOk);
+        cnclBtn.addEventListener('click', onCancel);
+        overlay.addEventListener('mousedown', onBackdrop);
+        document.addEventListener('keydown', onKey);
+    });
+}
+
 // ── API helpers ────────────────────────────────────────────
 async function apiPost(data) {
     const fd = new FormData();
@@ -164,8 +215,9 @@ if (evForm) {
 }
 
 // ── Delete Evidence ───────────────────────────────────────
-function deleteEvidence(evId, indId) {
-    if (!confirm('ลบหลักฐานนี้?')) return;
+async function deleteEvidence(evId, indId) {
+    if (!await uiConfirm('ต้องการลบหลักฐานนี้ออกจากระบบ?',
+        { title:'ลบหลักฐาน', confirmLabel:'ลบ', danger:true })) return;
     apiPost({ action: 'delete_evidence', evidence_id: evId }).then(r => {
         if (r.ok) {
             showToast('ลบหลักฐานแล้ว');

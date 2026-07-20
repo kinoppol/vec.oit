@@ -179,8 +179,9 @@ if ($fyCode) {
 <script>
 function openAddFY() { document.getElementById('addFYModal').classList.remove('hidden'); }
 
-function setActiveFY(id, code) {
-    if (!confirm('ตั้งปี ' + code + ' เป็นปีงบประมาณที่ใช้งาน?')) return;
+async function setActiveFY(id, code) {
+    if (!await uiConfirm('ตั้งปีงบประมาณ ' + code + ' เป็นปีที่ใช้งานปัจจุบัน?',
+        { title:'เปลี่ยนปีงบประมาณที่ใช้งาน', confirmLabel:'ตั้งเป็นปีปัจจุบัน' })) return;
     apiPost({ action:'set_active_year', id }).then(r => {
         r.ok ? location.reload() : showToast(r.error, 'error');
     });

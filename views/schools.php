@@ -104,15 +104,18 @@ $counts = [
 </div>
 
 <script>
-function approveSchool(id, name) {
-    if (!confirm('อนุมัติสถานศึกษา "' + name + '"?')) return;
+async function approveSchool(id, name) {
+    if (!await uiConfirm('อนุมัติสถานศึกษา "' + name + '" ให้เข้าใช้งานระบบ?',
+        { title:'อนุมัติสถานศึกษา', confirmLabel:'อนุมัติ' })) return;
     apiPost({ action:'approve_school', id }).then(r => {
         r.ok ? location.reload() : showToast(r.error, 'error');
     });
 }
-function setSchoolStatus(id, status, name) {
-    const msg = status === 'active' ? 'เปิดใช้งาน' : 'ปิดใช้งาน';
-    if (!confirm(msg + ' สถานศึกษา "' + name + '"?')) return;
+async function setSchoolStatus(id, status, name) {
+    const off = status !== 'active';
+    const msg = off ? 'ปิดใช้งาน' : 'เปิดใช้งาน';
+    if (!await uiConfirm(msg + 'สถานศึกษา "' + name + '"?',
+        { title:msg + 'สถานศึกษา', confirmLabel:msg, danger:off })) return;
     apiPost({ action:'set_school_status', id, status }).then(r => {
         r.ok ? location.reload() : showToast(r.error, 'error');
     });

@@ -184,6 +184,21 @@ $publicLink = APP_URL . '/public.php?slug=' . ($school['slug'] ?? '') . '&year='
 
 <div id="toast" class="toast hidden"></div>
 
+<!-- Confirm modal -->
+<div id="confirmOverlay" class="modal-overlay hidden" aria-hidden="true">
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <div class="modal-icon" id="confirmIcon">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    </div>
+    <div class="modal-title" id="confirmTitle">ยืนยันการทำรายการ</div>
+    <div class="modal-msg" id="confirmMsg"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn-modal btn-modal-ghost" id="confirmCancel">ยกเลิก</button>
+      <button type="button" class="btn-modal btn-modal-primary" id="confirmOk">ยืนยัน</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const APP_URL   = '<?= APP_URL ?>';
 const CSRF_TOKEN = '<?= csrf_token() ?>';

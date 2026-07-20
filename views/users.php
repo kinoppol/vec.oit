@@ -184,8 +184,9 @@ $users = $stmt->fetchAll();
 function openAddUser()  { document.getElementById('addUserModal').classList.remove('hidden'); }
 function closeAddUser() { document.getElementById('addUserModal').classList.add('hidden'); }
 
-function resetPassword(userId, name) {
-    if (!confirm('รีเซ็ตรหัสผ่านของ ' + name + '?')) return;
+async function resetPassword(userId, name) {
+    if (!await uiConfirm('รีเซ็ตรหัสผ่านของ ' + name + ' เป็นรหัสใหม่?',
+        { title:'รีเซ็ตรหัสผ่าน', confirmLabel:'รีเซ็ต' })) return;
     apiPost({ action:'reset_password', user_id: userId }).then(r => {
         if (r.ok) {
             document.getElementById('resetName').textContent = name;
@@ -195,9 +196,11 @@ function resetPassword(userId, name) {
     });
 }
 
-function toggleUser(userId, status, name) {
-    const msg = status === 'active' ? 'เปิดใช้งาน' : 'ปิดใช้งาน';
-    if (!confirm(msg + ' บัญชีของ ' + name + '?')) return;
+async function toggleUser(userId, status, name) {
+    const off = status !== 'active';
+    const msg = off ? 'ปิดใช้งาน' : 'เปิดใช้งาน';
+    if (!await uiConfirm(msg + 'บัญชีของ ' + name + '?',
+        { title:msg + 'บัญชีผู้ใช้', confirmLabel:msg, danger:off })) return;
     apiPost({ action:'toggle_user', user_id: userId, status }).then(r => {
         r.ok ? location.reload() : showToast(r.error, 'error');
     });
