@@ -27,3 +27,6 @@ Thumbs.db
 
 # Debug flag (create to enable on-screen errors)
 .debug
+
+# Local DB credentials written by install.php
+config/db.config.php
