@@ -32,7 +32,7 @@ $view = $_GET['view'] ?? match($role) {
 // Validate view access
 $allowedViews = match($role) {
     'centraladmin' => ['criteria', 'schools'],
-    'schooladmin'  => ['dashboard', 'evidence', 'users'],
+    'schooladmin'  => ['dashboard', 'evidence', 'users', 'school'],
     default        => ['dashboard', 'evidence'],
 };
 if (!in_array($view, $allowedViews, true)) {
@@ -59,6 +59,7 @@ $pageTitle = match($view) {
     'dashboard' => 'ภาพรวมความคืบหน้า',
     'evidence'  => 'กรอกหลักฐานตัวชี้วัด',
     'users'     => 'จัดการผู้ใช้',
+    'school'    => 'ข้อมูลสถานศึกษา',
     'criteria'  => 'เกณฑ์ & ปีงบประมาณ',
     'schools'   => 'สถานศึกษาที่สมัครใช้งาน',
     default     => '',
@@ -115,6 +116,10 @@ $publicLink = APP_URL . '/public.php?slug=' . ($school['slug'] ?? '') . '&year='
       </a>
       <?php endif; ?>
       <?php if ($role === 'schooladmin'): ?>
+      <a href="?view=school" class="nav-item <?= $view==='school'?'active':'' ?>">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-5h6v5M9 10h.01M15 10h.01M9 13h.01M15 13h.01"/></svg>
+        ข้อมูลสถานศึกษา
+      </a>
       <a href="?view=users" class="nav-item <?= $view==='users'?'active':'' ?>">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 11.2a3 3 0 0 0 0-5.8M20 19c0-2-1.2-3.6-3-4.4"/></svg>
         จัดการผู้ใช้
