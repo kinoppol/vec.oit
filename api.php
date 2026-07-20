@@ -574,12 +574,16 @@ function importRmsUsers(): never {
         $slice = array_slice($items, $offset, 20); // 20 bcrypt hashes/request ≈ a few seconds
 
         try {
+            // Protect admin accounts: never overwrite an existing schooladmin/centraladmin
+            // (their password, name, email, school stay intact — only role="user" rows are updated)
             $ins = db()->prepare('
                 INSERT INTO users (school_id, national_id, password_hash, full_name, email, role, status, must_change_pw)
                 VALUES (?, ?, ?, ?, ?, "user", "active", 0)
                 ON DUPLICATE KEY UPDATE
-                  full_name = VALUES(full_name), email = VALUES(email),
-                  password_hash = VALUES(password_hash), school_id = VALUES(school_id)
+                  full_name     = IF(role = "user", VALUES(full_name), full_name),
+                  email         = IF(role = "user", VALUES(email), email),
+                  password_hash = IF(role = "user", VALUES(password_hash), password_hash),
+                  school_id     = IF(role = "user", VALUES(school_id), school_id)
             ');
         } catch (PDOException $e) {
             if (($e->errorInfo[1] ?? 0) === 1054) json_err('ฐานข้อมูลยังไม่มีคอลัมน์ users.email — กรุณารัน migrate.php ก่อน', 500);
