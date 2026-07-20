@@ -595,7 +595,9 @@ select.form-input { appearance: none; background-image: url("data:image/svg+xml,
 }
 .data-table tr:last-child td { border-bottom: none; }
 .data-table tr:hover td { background: var(--surface-2); }
-.actions { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+.actions { text-align: right; white-space: nowrap; }
+.actions .icon-btn { display: inline-flex; vertical-align: middle; }
+.actions .icon-btn + .icon-btn { margin-left: 6px; }
 .national-id { font-family: monospace; font-size: 13px; letter-spacing: .5px; }
 
 /* ── Users Layout ── */
