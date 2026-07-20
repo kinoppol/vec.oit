@@ -71,12 +71,21 @@
       หลักฐาน (<?= count($evidences) ?>)
       <button class="btn btn-primary btn-sm" onclick="openEvModal(<?= $ind['id'] ?>)">+ เพิ่ม</button>
     </div>
-    <div class="ev-list" id="evList<?= $ind['id'] ?>">
+    <div class="ev-list" id="evList<?= $ind['id'] ?>" data-ind="<?= $ind['id'] ?>">
       <?php if (empty($evidences)): ?>
       <div class="ev-empty">ยังไม่มีหลักฐาน</div>
       <?php else: ?>
-      <?php foreach ($evidences as $ev): ?>
-      <div class="ev-item" id="ev<?= $ev['id'] ?>">
+      <?php foreach ($evidences as $ev):
+        $isImg = ($ev['type'] === 'image') || ($ev['file_path'] && in_array(strtolower(pathinfo($ev['file_path'], PATHINFO_EXTENSION)), ['jpg','jpeg','png','gif','webp']));
+        $fileUrl = $ev['file_path'] ? APP_URL . '/uploads/' . rawurlencode($ev['file_path']) : null;
+      ?>
+      <div class="ev-item" id="ev<?= $ev['id'] ?>" draggable="true" data-ev-id="<?= $ev['id'] ?>">
+        <div class="ev-drag" title="ลากเพื่อจัดลำดับ">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>
+        </div>
+        <?php if ($isImg && $fileUrl): ?>
+        <a href="<?= $fileUrl ?>" target="_blank" class="ev-thumb"><img src="<?= $fileUrl ?>" alt="<?= e($ev['title']) ?>" loading="lazy"></a>
+        <?php else: ?>
         <div class="ev-icon">
           <?php if ($ev['url']): ?>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
@@ -84,11 +93,12 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h11l5 5v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M14 4v5h5"/></svg>
           <?php endif; ?>
         </div>
+        <?php endif; ?>
         <div class="ev-body">
           <?php if ($ev['url']): ?>
           <a href="<?= e($ev['url']) ?>" target="_blank" rel="noopener" class="ev-name"><?= e($ev['title']) ?></a>
-          <?php elseif ($ev['file_path']): ?>
-          <a href="<?= APP_URL ?>/uploads/<?= rawurlencode($ev['file_path']) ?>" target="_blank" class="ev-name"><?= e($ev['title']) ?></a>
+          <?php elseif ($fileUrl): ?>
+          <a href="<?= $fileUrl ?>" target="_blank" class="ev-name"><?= e($ev['title']) ?></a>
           <?php else: ?>
           <span class="ev-name"><?= e($ev['title']) ?></span>
           <?php endif; ?>

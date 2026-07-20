@@ -129,6 +129,7 @@ async function loadIndicator(id) {
         const json = await res.json();
         if (json.ok) {
             panel.innerHTML = json.data.html;
+            initEvDragDrop();
         } else {
             panel.innerHTML = '<div class="detail-empty"><div class="detail-empty-text">เกิดข้อผิดพลาด</div></div>';
         }
@@ -165,6 +166,51 @@ function updateStatus(indId, status) {
     });
 }
 
+// ── Evidence drag-and-drop reordering ─────────────────────
+function initEvDragDrop() {
+    const list = document.querySelector('.ev-list[data-ind]');
+    if (!list) return;
+    let dragEl = null;
+
+    list.querySelectorAll('.ev-item').forEach(item => {
+        item.addEventListener('dragstart', e => {
+            dragEl = item;
+            item.classList.add('ev-dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        });
+        item.addEventListener('dragend', () => {
+            item.classList.remove('ev-dragging');
+            dragEl = null;
+            persistEvOrder(list);
+        });
+    });
+
+    list.addEventListener('dragover', e => {
+        e.preventDefault();
+        if (!dragEl) return;
+        const after = evDragAfter(list, e.clientY);
+        if (after == null) list.appendChild(dragEl);
+        else list.insertBefore(dragEl, after);
+    });
+}
+
+function evDragAfter(list, y) {
+    const items = [...list.querySelectorAll('.ev-item:not(.ev-dragging)')];
+    return items.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) return { offset, element: child };
+        return closest;
+    }, { offset: -Infinity, element: null }).element;
+}
+
+function persistEvOrder(list) {
+    const ids = [...list.querySelectorAll('.ev-item')].map(el => el.dataset.evId);
+    if (!ids.length) return;
+    apiPost({ action: 'reorder_evidence', indicator_id: list.dataset.ind, order: ids.join(',') })
+        .then(r => { if (!r.ok) showToast(r.error, 'error'); });
+}
+
 // ── Assign responsible user ───────────────────────────────
 function assignIndicator(indId, userId) {
     apiPost({ action: 'assign_indicator', indicator_id: indId, user_id: userId }).then(r => {
@@ -186,6 +232,7 @@ function openEvModal(indId) {
     document.getElementById('evModalTitle').textContent = 'เพิ่มหลักฐาน';
     document.getElementById('evSubmitBtn').textContent  = 'บันทึกหลักฐาน';
     document.getElementById('evCurrentFile').classList.add('hidden');
+    document.getElementById('evFileInput')?.setAttribute('multiple', 'multiple');
     setLinkType('url');
     modal.classList.remove('hidden');
 }
@@ -202,6 +249,7 @@ function openEvEdit(data) {
     document.getElementById('evNote').value   = data.note || '';
     document.getElementById('evModalTitle').textContent = 'แก้ไขหลักฐาน';
     document.getElementById('evSubmitBtn').textContent  = 'บันทึกการแก้ไข';
+    document.getElementById('evFileInput')?.removeAttribute('multiple'); // edit = single file
 
     const curFile = document.getElementById('evCurrentFile');
     if (data.file_path) {
@@ -254,8 +302,10 @@ if (evForm) {
             const json = await res.json();
             if (json.ok) {
                 const isEdit = document.getElementById('evAction').value === 'edit_evidence';
+                const n = json.data && json.data.created ? json.data.created : 1;
                 closeEvModal();
-                showToast(isEdit ? 'บันทึกการแก้ไขเรียบร้อย' : 'เพิ่มหลักฐานเรียบร้อย');
+                showToast(isEdit ? 'บันทึกการแก้ไขเรียบร้อย'
+                                 : (n > 1 ? 'เพิ่มหลักฐาน ' + n + ' รายการเรียบร้อย' : 'เพิ่มหลักฐานเรียบร้อย'));
                 // Reload detail panel
                 if (window.selectedIndicatorId) loadIndicator(window.selectedIndicatorId);
             } else { showToast(json.error, 'error'); }

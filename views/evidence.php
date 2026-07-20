@@ -101,8 +101,10 @@ $selectedId = isset($_GET['indicator']) ? (int)$_GET['indicator'] : 0;
         <input type="url" name="url" id="evUrl" class="form-input" placeholder="https://…" maxlength="2000">
       </div>
       <div class="form-group hidden" id="fileGroup">
-        <label class="form-label">อัปโหลดไฟล์ (ไม่เกิน 10 MB)</label>
-        <input type="file" name="upload" class="form-input form-file" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif">
+        <label class="form-label">อัปโหลดไฟล์/รูปภาพ (ไม่เกิน 10 MB ต่อไฟล์)</label>
+        <input type="file" name="upload[]" id="evFileInput" class="form-input form-file" multiple
+               accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp">
+        <div class="form-hint">เลือกได้หลายไฟล์พร้อมกัน — ระบบจะสร้างเป็นหลายรายการให้อัตโนมัติ</div>
         <div class="form-hint hidden" id="evCurrentFile"></div>
       </div>
       <div class="form-group">

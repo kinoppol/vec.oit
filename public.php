@@ -42,7 +42,7 @@ foreach ($tree as $sec) {
     foreach ($sec['subs'] as $sub) {
         foreach ($sub['inds'] as $ind) {
             // Load evidences
-            $evStmt = db()->prepare('SELECT * FROM evidences WHERE indicator_id = ? AND school_id = ? ORDER BY created_at DESC');
+            $evStmt = db()->prepare('SELECT * FROM evidences WHERE indicator_id = ? AND school_id = ? ORDER BY sort_order ASC, id ASC');
             $evStmt->execute([$ind['id'], $school['id']]);
             $ind['evidences'] = $evStmt->fetchAll();
             $ind['sec_code']  = $sec['code'];
@@ -128,9 +128,16 @@ $pctDash = $circ * $r / 100;
       </div>
       <?php if (!empty($ind['evidences'])): ?>
       <div class="pub-ev-list">
-        <?php foreach ($ind['evidences'] as $ev): ?>
+        <?php foreach ($ind['evidences'] as $ev):
+          $evIsImg = ($ev['type'] === 'image') || ($ev['file_path'] && in_array(strtolower(pathinfo($ev['file_path'], PATHINFO_EXTENSION)), ['jpg','jpeg','png','gif','webp']));
+        ?>
         <div class="pub-ev-item">
-          <?php if ($ev['url']): ?>
+          <?php if ($evIsImg && $ev['file_path']): ?>
+          <a href="<?= APP_URL ?>/uploads/<?= rawurlencode($ev['file_path']) ?>" target="_blank" class="pub-ev-thumb">
+            <img src="<?= APP_URL ?>/uploads/<?= rawurlencode($ev['file_path']) ?>" alt="<?= e($ev['title']) ?>" loading="lazy">
+          </a>
+          <a href="<?= APP_URL ?>/uploads/<?= rawurlencode($ev['file_path']) ?>" target="_blank" class="pub-ev-link"><?= e($ev['title']) ?></a>
+          <?php elseif ($ev['url']): ?>
           <a href="<?= e($ev['url']) ?>" target="_blank" rel="noopener" class="pub-ev-link">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
             <?= e($ev['title']) ?>

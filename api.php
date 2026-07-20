@@ -32,7 +32,7 @@ if ($action === 'indicator_detail') {
     $ind = $stmt->fetch();
     if (!$ind) json_err('Not found', 404);
 
-    $evStmt = db()->prepare('SELECT * FROM evidences WHERE indicator_id = ? AND school_id = ? ORDER BY created_at DESC');
+    $evStmt = db()->prepare('SELECT * FROM evidences WHERE indicator_id = ? AND school_id = ? ORDER BY sort_order ASC, id ASC');
     $evStmt->execute([$id, $schoolId]);
     $evidences = $evStmt->fetchAll();
 
@@ -125,6 +125,7 @@ match ($action) {
     'add_evidence'     => addEvidence(),
     'edit_evidence'    => editEvidence(),
     'delete_evidence'  => deleteEvidence(),
+    'reorder_evidence' => reorderEvidence(),
     'upload_emblem'    => uploadEmblem(),
     'add_user'         => addUser(),
     'reset_password'   => resetPassword(),
@@ -206,6 +207,15 @@ function updateSlug(): never {
     json_ok(['slug' => $slug]);
 }
 
+const EV_ALLOWED_EXT = ['pdf','doc','docx','xls','xlsx','jpg','jpeg','png','gif','webp'];
+const EV_IMAGE_EXT   = ['jpg','jpeg','png','gif','webp'];
+
+function ev_next_sort(int $schoolId, int $indId): int {
+    $s = db()->prepare('SELECT COALESCE(MAX(sort_order),0)+1 FROM evidences WHERE school_id = ? AND indicator_id = ?');
+    $s->execute([$schoolId, $indId]);
+    return (int)$s->fetchColumn();
+}
+
 function addEvidence(): never {
     global $schoolId, $userId, $role;
     if (!in_array($role, ['user','schooladmin'])) json_err('Forbidden', 403);
@@ -215,28 +225,67 @@ function addEvidence(): never {
     $url      = trim($_POST['url'] ?? '');
     $note     = trim($_POST['note'] ?? '');
     $linkType = $_POST['link_type'] ?? 'url';
-    if (!$indId || !$name) json_err('กรุณากรอกชื่อหลักฐาน');
+    if (!$indId) json_err('ข้อมูลไม่ครบ');
 
-    $filePath = null;
-    if ($linkType === 'file' && !empty($_FILES['upload']['tmp_name'])) {
-        $file = $_FILES['upload'];
-        if ($file['size'] > MAX_UPLOAD) json_err('ไฟล์ใหญ่เกิน 10 MB');
-        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        $allowed = ['pdf','doc','docx','xls','xlsx','jpg','jpeg','png','gif','webp'];
-        if (!in_array($ext, $allowed)) json_err('ประเภทไฟล์ไม่อนุญาต');
-        $newName = bin2hex(random_bytes(16)) . '.' . $ext;
-        $dest = UPLOAD_DIR . '/' . $newName;
-        if (!move_uploaded_file($file['tmp_name'], $dest)) json_err('อัปโหลดไม่สำเร็จ');
-        $filePath = $newName;
-        $url = null;
+    $sort = ev_next_sort($schoolId, $indId);
+    $ins  = db()->prepare('
+        INSERT INTO evidences (school_id, indicator_id, created_by, type, title, url, file_path, note, sort_order)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ');
+    $created = 0;
+
+    if ($linkType === 'file' && !empty($_FILES['upload']['name'])) {
+        // Normalize to arrays so a single or multiple selection both work
+        $f     = $_FILES['upload'];
+        $names = is_array($f['name'])     ? $f['name']     : [$f['name']];
+        $tmps  = is_array($f['tmp_name']) ? $f['tmp_name'] : [$f['tmp_name']];
+        $sizes = is_array($f['size'])     ? $f['size']     : [$f['size']];
+        $multi = count(array_filter($names, fn($n) => $n !== '')) > 1;
+
+        foreach ($names as $i => $fn) {
+            if ($fn === '' || empty($tmps[$i])) continue;
+            if ($sizes[$i] > MAX_UPLOAD) json_err('ไฟล์ "' . $fn . '" ใหญ่เกิน 10 MB');
+            $ext = strtolower(pathinfo($fn, PATHINFO_EXTENSION));
+            if (!in_array($ext, EV_ALLOWED_EXT)) json_err('ประเภทไฟล์ไม่อนุญาต: ' . $fn);
+            $newName = bin2hex(random_bytes(16)) . '.' . $ext;
+            if (!move_uploaded_file($tmps[$i], UPLOAD_DIR . '/' . $newName)) json_err('อัปโหลดไม่สำเร็จ');
+
+            $base  = pathinfo($fn, PATHINFO_FILENAME);
+            $title = $name !== '' ? ($multi ? $name . ' — ' . $base : $name) : $base;
+            $type  = in_array($ext, EV_IMAGE_EXT) ? 'image' : 'file';
+            $ins->execute([$schoolId, $indId, $userId, $type, $title, null, $newName, $note ?: null, $sort++]);
+            $created++;
+        }
+        if ($created === 0) json_err('ไม่พบไฟล์ที่อัปโหลด');
+    } else {
+        if ($name === '') json_err('กรุณากรอกชื่อหลักฐาน');
+        $ins->execute([$schoolId, $indId, $userId, 'link', $name, $url ?: null, null, $note ?: null, $sort]);
+        $created = 1;
     }
 
-    db()->prepare('
-        INSERT INTO evidences (school_id, indicator_id, created_by, type, title, url, file_path, note)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    ')->execute([$schoolId, $indId, $userId, $linkType === 'file' ? 'file' : 'link', $name, $url ?: null, $filePath, $note ?: null]);
+    json_ok(['created' => $created]);
+}
 
-    json_ok(['id' => db()->lastInsertId()]);
+function reorderEvidence(): never {
+    global $schoolId, $role;
+    if (!in_array($role, ['user','schooladmin'])) json_err('Forbidden', 403);
+
+    $indId = (int)($_POST['indicator_id'] ?? 0);
+    $idArr = array_values(array_filter(array_map('intval', explode(',', $_POST['order'] ?? ''))));
+    if (!$indId || !$idArr) json_err('ข้อมูลไม่ครบ');
+
+    // Verify every id belongs to this school + indicator
+    $ph  = implode(',', array_fill(0, count($idArr), '?'));
+    $chk = db()->prepare("SELECT id FROM evidences WHERE indicator_id = ? AND school_id = ? AND id IN ($ph)");
+    $chk->execute(array_merge([$indId, $schoolId], $idArr));
+    $valid = array_map('intval', array_column($chk->fetchAll(), 'id'));
+
+    $upd = db()->prepare('UPDATE evidences SET sort_order = ? WHERE id = ? AND school_id = ?');
+    $so  = 1;
+    foreach ($idArr as $id) {
+        if (in_array($id, $valid, true)) $upd->execute([$so++, $id, $schoolId]);
+    }
+    json_ok();
 }
 
 function editEvidence(): never {
@@ -261,15 +310,18 @@ function editEvidence(): never {
     $type     = 'link';
 
     if ($linkType === 'file') {
+        // The file input is name="upload[]"; take the first selected file (edit = single)
+        $f = $_FILES['upload'] ?? null;
+        $upName = is_array($f['name'] ?? null) ? ($f['name'][0] ?? '') : ($f['name'] ?? '');
+        $upTmp  = is_array($f['tmp_name'] ?? null) ? ($f['tmp_name'][0] ?? '') : ($f['tmp_name'] ?? '');
+        $upSize = is_array($f['size'] ?? null) ? ($f['size'][0] ?? 0) : ($f['size'] ?? 0);
         // Replace file only if a new one is uploaded; otherwise keep the existing file
-        if (!empty($_FILES['upload']['tmp_name'])) {
-            $file = $_FILES['upload'];
-            if ($file['size'] > MAX_UPLOAD) json_err('ไฟล์ใหญ่เกิน 10 MB');
-            $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-            $allowed = ['pdf','doc','docx','xls','xlsx','jpg','jpeg','png','gif','webp'];
-            if (!in_array($ext, $allowed)) json_err('ประเภทไฟล์ไม่อนุญาต');
+        if ($upName !== '' && $upTmp !== '') {
+            if ($upSize > MAX_UPLOAD) json_err('ไฟล์ใหญ่เกิน 10 MB');
+            $ext = strtolower(pathinfo($upName, PATHINFO_EXTENSION));
+            if (!in_array($ext, EV_ALLOWED_EXT)) json_err('ประเภทไฟล์ไม่อนุญาต');
             $newName = bin2hex(random_bytes(16)) . '.' . $ext;
-            if (!move_uploaded_file($file['tmp_name'], UPLOAD_DIR . '/' . $newName)) json_err('อัปโหลดไม่สำเร็จ');
+            if (!move_uploaded_file($upTmp, UPLOAD_DIR . '/' . $newName)) json_err('อัปโหลดไม่สำเร็จ');
             if ($ev['file_path'] && file_exists(UPLOAD_DIR . '/' . $ev['file_path'])) {
                 unlink(UPLOAD_DIR . '/' . $ev['file_path']);
             }
@@ -277,7 +329,9 @@ function editEvidence(): never {
         }
         if (!$filePath) json_err('กรุณาเลือกไฟล์');
         $url  = null;
-        $type = 'file';
+        // Preserve/detect image type from the stored file extension
+        $curExt = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        $type = in_array($curExt, EV_IMAGE_EXT) ? 'image' : 'file';
     } else {
         // URL mode — drop any previously attached file
         if ($ev['file_path'] && file_exists(UPLOAD_DIR . '/' . $ev['file_path'])) {
