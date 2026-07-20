@@ -8,6 +8,11 @@ unset($_SESSION['flash']);
 $stmt = db()->prepare('SELECT * FROM users WHERE school_id = ? ORDER BY role DESC, full_name ASC');
 $stmt->execute([$schoolId]);
 $users = $stmt->fetchAll();
+
+// Position master list (for the combobox suggestions)
+$posStmt = db()->prepare('SELECT id, name FROM positions WHERE school_id = ? ORDER BY name');
+$posStmt->execute([$schoolId]);
+$positions = $posStmt->fetchAll();
 ?>
 <div class="users-layout">
 
@@ -196,17 +201,41 @@ $users = $stmt->fetchAll();
     <form id="posForm" class="modal-body">
       <input type="hidden" id="posUserId">
       <div class="alert alert-info" style="margin-bottom:16px">
-        ตำแหน่งของ <strong id="posUserName"></strong> — ค่านี้จะไม่ถูกล้างเมื่อโอนข้อมูลจาก RMS ใหม่
+        ตำแหน่งของ <strong id="posUserName"></strong> — เลือกจากรายการหรือพิมพ์ตำแหน่งใหม่ได้ (ค่านี้จะไม่ถูกล้างเมื่อโอน RMS ใหม่)
       </div>
       <div class="form-group">
         <label class="form-label">ตำแหน่ง</label>
-        <input type="text" id="posInput" class="form-input" maxlength="150" placeholder="เช่น ครู, หัวหน้างานพัสดุ, รองผู้อำนวยการ">
+        <input type="text" id="posInput" class="form-input" list="posDatalist" maxlength="150"
+               placeholder="พิมพ์เพื่อค้นหา/เพิ่มใหม่ เช่น ครู, หัวหน้างานพัสดุ">
+        <datalist id="posDatalist">
+          <?php foreach ($positions as $p): ?><option value="<?= e($p['name']) ?>"></option><?php endforeach; ?>
+        </datalist>
       </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-ghost" onclick="document.getElementById('posModal').classList.add('hidden')">ยกเลิก</button>
-        <button type="submit" class="btn btn-primary">บันทึก</button>
+      <div class="modal-footer" style="justify-content:space-between">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="openManagePos()">จัดการรายการตำแหน่ง</button>
+        <div style="display:flex;gap:10px">
+          <button type="button" class="btn btn-ghost" onclick="document.getElementById('posModal').classList.add('hidden')">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary">บันทึก</button>
+        </div>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- ─── MANAGE POSITIONS MODAL ─── -->
+<div class="modal-backdrop hidden" id="managePosModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">จัดการรายการตำแหน่ง</h2>
+      <button class="modal-close" onclick="document.getElementById('managePosModal').classList.add('hidden')">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="addPosForm" class="rms-url-row" style="margin-bottom:14px">
+        <input type="text" id="newPosInput" class="form-input" maxlength="150" placeholder="เพิ่มตำแหน่งใหม่…" required>
+        <button type="submit" class="btn btn-primary">เพิ่ม</button>
+      </form>
+      <div id="posList" class="pos-list"></div>
+    </div>
   </div>
 </div>
 
@@ -238,6 +267,51 @@ document.getElementById('posForm').addEventListener('submit', function (e) {
         showToast('บันทึกตำแหน่งแล้ว');
     });
 });
+
+// ── Manage positions (master list) ──
+function openManagePos() {
+    loadPosList();
+    document.getElementById('managePosModal').classList.remove('hidden');
+}
+async function loadPosList() {
+    const box = document.getElementById('posList');
+    box.innerHTML = '<div class="pos-empty">กำลังโหลด…</div>';
+    const r = await apiPost({ action:'list_positions' });
+    if (!r.ok) { box.textContent = r.error; return; }
+    const items = r.data || [];
+    refreshPosDatalist(items);
+    if (!items.length) { box.innerHTML = '<div class="pos-empty">ยังไม่มีตำแหน่งในระบบ</div>'; return; }
+    box.innerHTML = items.map(p =>
+        '<div class="pos-row" data-id="' + p.id + '">'
+        + '<input class="form-input pos-name" value="' + escHtml(p.name) + '" maxlength="150">'
+        + '<button type="button" class="btn btn-ghost btn-sm" onclick="savePos(' + p.id + ', this)">บันทึก</button>'
+        + '<button type="button" class="icon-btn icon-btn-danger" title="ลบ" onclick="delPos(' + p.id + ')">'
+        + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>'
+        + '</button></div>').join('');
+}
+async function savePos(id, btn) {
+    const name = btn.closest('.pos-row').querySelector('.pos-name').value.trim();
+    if (!name) return;
+    const r = await apiPost({ action:'rename_position', id, name });
+    if (r.ok) { showToast('บันทึกแล้ว'); loadPosList(); } else showToast(r.error, 'error');
+}
+async function delPos(id) {
+    if (!await uiConfirm('ลบตำแหน่งนี้ออกจากรายการ?', { title:'ลบตำแหน่ง', confirmLabel:'ลบ', danger:true })) return;
+    const r = await apiPost({ action:'delete_position', id });
+    if (r.ok) loadPosList(); else showToast(r.error, 'error');
+}
+document.getElementById('addPosForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const inp = document.getElementById('newPosInput');
+    const name = inp.value.trim();
+    if (!name) return;
+    const r = await apiPost({ action:'add_position', name });
+    if (r.ok) { inp.value = ''; loadPosList(); } else showToast(r.error, 'error');
+});
+function refreshPosDatalist(items) {
+    const dl = document.getElementById('posDatalist');
+    if (dl) dl.innerHTML = items.map(p => '<option value="' + escHtml(p.name) + '"></option>').join('');
+}
 
 // ── RMS import settings ──
 (function () {

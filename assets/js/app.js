@@ -131,6 +131,7 @@ async function loadIndicator(id) {
         if (json.ok) {
             panel.innerHTML = json.data.html;
             initEvDragDrop();
+            initAssignee();
         } else {
             panel.innerHTML = '<div class="detail-empty"><div class="detail-empty-text">เกิดข้อผิดพลาด</div></div>';
         }
@@ -210,6 +211,60 @@ function persistEvOrder(list) {
     if (!ids.length) return;
     apiPost({ action: 'reorder_evidence', indicator_id: list.dataset.ind, order: ids.join(',') })
         .then(r => { if (!r.ok) showToast(r.error, 'error'); });
+}
+
+// ── Assignee autocomplete ─────────────────────────────────
+function escHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+        ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+function initAssignee() {
+    const box = document.querySelector('.assignee-ac');
+    if (!box) return;
+    const input    = box.querySelector('.assignee-input');
+    const hidden   = box.querySelector('.assignee-uid');
+    const clearBtn = box.querySelector('.assignee-clear');
+    const menu     = box.querySelector('.assignee-menu');
+    const indId    = box.dataset.ind;
+    let users = [];
+    try { users = JSON.parse(document.querySelector('.assignee-data').textContent) || []; } catch (e) {}
+    let currentDisplay = input.value;
+
+    const close = () => { menu.classList.add('hidden'); menu.innerHTML = ''; };
+    const pick = (id, name) => {
+        hidden.value = id;
+        input.value = name;
+        currentDisplay = name;
+        clearBtn.style.display = id > 0 ? '' : 'none';
+        close();
+        assignIndicator(indId, id);
+    };
+    const render = q => {
+        q = (q || '').toLowerCase().trim();
+        let list = q ? users.filter(u => (u.name + ' ' + u.nick + ' ' + u.pos).toLowerCase().indexOf(q) !== -1) : users;
+        list = list.slice(0, 40);
+        let html = '<div class="assignee-opt" data-id="0">— ยังไม่มอบหมาย —</div>';
+        html += list.map(u => '<div class="assignee-opt" data-id="' + u.id + '">'
+            + '<span class="ao-name">' + escHtml(u.name) + (u.admin ? ' <span class="ao-admin">ผู้ดูแล</span>' : '') + '</span>'
+            + ((u.nick || u.pos) ? '<span class="ao-sub">' + [u.nick, u.pos].filter(Boolean).map(escHtml).join(' · ') + '</span>' : '')
+            + '</div>').join('');
+        if (!list.length && q) html += '<div class="assignee-empty">ไม่พบผู้ใช้</div>';
+        menu.innerHTML = html;
+        menu.classList.remove('hidden');
+    };
+
+    input.addEventListener('focus', () => render(input.value));
+    input.addEventListener('input', () => render(input.value));
+    input.addEventListener('blur', () => setTimeout(() => { close(); input.value = currentDisplay; }, 150));
+    menu.addEventListener('mousedown', e => {
+        const opt = e.target.closest('.assignee-opt');
+        if (!opt) return;
+        e.preventDefault();
+        const id = parseInt(opt.dataset.id, 10);
+        pick(id, id === 0 ? '' : (users.find(u => u.id === id) || {}).name || '');
+    });
+    clearBtn.addEventListener('click', () => pick(0, ''));
 }
 
 // ── Assign responsible user ───────────────────────────────

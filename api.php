@@ -41,7 +41,7 @@ if ($action === 'indicator_detail') {
     $canAssign = ($panelRole === 'schooladmin');
     $schoolUsers = [];
     if ($canAssign) {
-        $uStmt = db()->prepare('SELECT id, full_name, role FROM users WHERE school_id = ? AND status = "active" ORDER BY role DESC, full_name');
+        $uStmt = db()->prepare('SELECT id, full_name, nickname, position, role FROM users WHERE school_id = ? AND status = "active" ORDER BY role DESC, full_name');
         $uStmt->execute([$schoolId]);
         $schoolUsers = $uStmt->fetchAll();
     }
@@ -129,6 +129,10 @@ match ($action) {
     'upload_emblem'    => uploadEmblem(),
     'add_user'         => addUser(),
     'update_user_position' => updateUserPosition(),
+    'list_positions'   => listPositions(),
+    'add_position'     => addPosition(),
+    'rename_position'  => renamePosition(),
+    'delete_position'  => deletePosition(),
     'update_rms_url'   => updateRmsUrl(),
     'rms_ping'         => rmsPing(),
     'import_rms_users' => importRmsUsers(),
@@ -446,6 +450,13 @@ function toggleUser(): never {
     json_ok();
 }
 
+/** Ensure a position name exists in the school's master list */
+function ensure_position(int $schoolId, string $name): void {
+    $name = trim($name);
+    if ($name === '') return;
+    db()->prepare('INSERT IGNORE INTO positions (school_id, name) VALUES (?, ?)')->execute([$schoolId, $name]);
+}
+
 function updateUserPosition(): never {
     global $schoolId, $role;
     if ($role !== 'schooladmin') json_err('Forbidden', 403);
@@ -460,7 +471,57 @@ function updateUserPosition(): never {
     if (!$chk->fetch()) json_err('ไม่พบผู้ใช้ในสถานศึกษานี้', 404);
 
     db()->prepare('UPDATE users SET position = ? WHERE id = ?')->execute([$pos ?: null, $uid]);
+    ensure_position($schoolId, $pos); // grow the master list when a new title is typed
     json_ok(['position' => $pos]);
+}
+
+function listPositions(): never {
+    global $schoolId, $role;
+    if ($role !== 'schooladmin') json_err('Forbidden', 403);
+    $st = db()->prepare('SELECT id, name FROM positions WHERE school_id = ? ORDER BY name');
+    $st->execute([$schoolId]);
+    json_ok($st->fetchAll());
+}
+
+function addPosition(): never {
+    global $schoolId, $role;
+    if ($role !== 'schooladmin') json_err('Forbidden', 403);
+    $name = trim($_POST['name'] ?? '');
+    if ($name === '' || mb_strlen($name) > 150) json_err('ชื่อตำแหน่งไม่ถูกต้อง');
+    ensure_position($schoolId, $name);
+    json_ok();
+}
+
+function renamePosition(): never {
+    global $schoolId, $role;
+    if ($role !== 'schooladmin') json_err('Forbidden', 403);
+    $id   = (int)($_POST['id'] ?? 0);
+    $name = trim($_POST['name'] ?? '');
+    if (!$id || $name === '' || mb_strlen($name) > 150) json_err('ข้อมูลไม่ถูกต้อง');
+
+    $st = db()->prepare('SELECT name FROM positions WHERE id = ? AND school_id = ?');
+    $st->execute([$id, $schoolId]);
+    $old = $st->fetchColumn();
+    if ($old === false) json_err('ไม่พบตำแหน่ง', 404);
+
+    // Unique check
+    $dup = db()->prepare('SELECT id FROM positions WHERE school_id = ? AND name = ? AND id <> ?');
+    $dup->execute([$schoolId, $name, $id]);
+    if ($dup->fetch()) json_err('มีชื่อตำแหน่งนี้อยู่แล้ว');
+
+    db()->prepare('UPDATE positions SET name = ? WHERE id = ? AND school_id = ?')->execute([$name, $id, $schoolId]);
+    // Keep users in sync with the renamed title
+    db()->prepare('UPDATE users SET position = ? WHERE school_id = ? AND position = ?')->execute([$name, $schoolId, $old]);
+    json_ok();
+}
+
+function deletePosition(): never {
+    global $schoolId, $role;
+    if ($role !== 'schooladmin') json_err('Forbidden', 403);
+    $id = (int)($_POST['id'] ?? 0);
+    if (!$id) json_err('Missing id');
+    db()->prepare('DELETE FROM positions WHERE id = ? AND school_id = ?')->execute([$id, $schoolId]);
+    json_ok();
 }
 
 function updateRmsUrl(): never {

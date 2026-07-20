@@ -45,14 +45,21 @@
   <div class="detail-section">
     <div class="detail-section-hdr">ผู้รับผิดชอบ</div>
     <?php if (!empty($canAssign)): ?>
-    <select class="form-input assignee-select" onchange="assignIndicator(<?= (int)$ind['id'] ?>, this.value)">
-      <option value="0">— ยังไม่มอบหมาย —</option>
-      <?php foreach (($schoolUsers ?? []) as $su): ?>
-      <option value="<?= (int)$su['id'] ?>" <?= (int)($ind['assigned_user_id'] ?? 0) === (int)$su['id'] ? 'selected' : '' ?>>
-        <?= e($su['full_name']) ?><?= $su['role'] === 'schooladmin' ? ' (ผู้ดูแล)' : '' ?>
-      </option>
-      <?php endforeach; ?>
-    </select>
+    <div class="assignee-ac" data-ind="<?= (int)$ind['id'] ?>">
+      <input type="text" class="form-input assignee-input" autocomplete="off"
+             placeholder="พิมพ์ชื่อ / ชื่อเล่น / นามสกุล / ตำแหน่ง…"
+             value="<?= e($ind['assignee_name'] ?? '') ?>">
+      <input type="hidden" class="assignee-uid" value="<?= (int)($ind['assigned_user_id'] ?? 0) ?>">
+      <button type="button" class="assignee-clear" title="ล้างการมอบหมาย" <?= empty($ind['assigned_user_id']) ? 'style="display:none"' : '' ?>>✕</button>
+      <div class="assignee-menu hidden"></div>
+    </div>
+    <script type="application/json" class="assignee-data"><?= json_encode(array_map(fn($su) => [
+        'id'    => (int)$su['id'],
+        'name'  => $su['full_name'],
+        'nick'  => $su['nickname'] ?? '',
+        'pos'   => $su['position'] ?? '',
+        'admin' => $su['role'] === 'schooladmin',
+    ], $schoolUsers ?? []), JSON_UNESCAPED_UNICODE) ?></script>
     <?php else: ?>
     <div class="assignee-display">
       <?php if (!empty($ind['assignee_name'])): ?>
