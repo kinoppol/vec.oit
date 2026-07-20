@@ -25,15 +25,15 @@
     <div class="status-btn-row">
       <button class="status-btn <?= $ind['status']==='pending'?'active':'' ?>"
               data-status="pending" onclick="updateStatus(<?= $ind['id'] ?>, 'pending')">
-        ยังไม่ดำเนินการ
+        <?= status_icon('pending') ?> ยังไม่ดำเนินการ
       </button>
       <button class="status-btn status-prog <?= $ind['status']==='inprogress'?'active':'' ?>"
               data-status="inprogress" onclick="updateStatus(<?= $ind['id'] ?>, 'inprogress')">
-        กำลังดำเนินการ
+        <?= status_icon('inprogress') ?> กำลังดำเนินการ
       </button>
       <button class="status-btn status-done <?= $ind['status']==='done'?'active':'' ?>"
               data-status="done" onclick="updateStatus(<?= $ind['id'] ?>, 'done')">
-        เผยแพร่แล้ว
+        <?= status_icon('done') ?> เผยแพร่แล้ว
       </button>
     </div>
     <?php if (!empty($ind['status_note'])): ?>

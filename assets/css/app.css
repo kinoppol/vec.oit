@@ -278,11 +278,12 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--p
 
 /* ── Chips ── */
 .chip {
-  display: inline-flex; align-items: center;
+  display: inline-flex; align-items: center; gap: 4px;
   padding: 2px 9px; border-radius: 20px;
   font-size: 12px; font-weight: 600; white-space: nowrap;
   background: var(--surface-3); color: var(--text-secondary);
 }
+.chip-ic { flex-shrink: 0; }
 .chip-done { background: var(--success-soft); color: var(--success); }
 .chip-prog { background: var(--warning-soft); color: var(--warning); }
 .chip-pend { background: var(--surface-3); color: var(--text-secondary); }
@@ -378,11 +379,13 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--p
 .status-btn-row { display: flex; gap: 8px; }
 .status-btn {
   flex: 1; padding: 9px 12px; border-radius: 9px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   border: 1.5px solid var(--border-strong);
   background: var(--surface); color: var(--text-secondary);
-  font-size: 13px; font-weight: 600;
+  font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
   transition: border-color .15s, background .15s, color .15s;
 }
+.status-btn svg { flex-shrink: 0; }
 .status-btn:hover { border-color: var(--text-secondary); }
 .status-btn.active { border-color: var(--text-secondary); background: var(--surface-3); color: var(--text-primary); }
 .status-btn.status-prog.active { border-color: var(--warning); background: var(--warning-soft); color: var(--warning); }

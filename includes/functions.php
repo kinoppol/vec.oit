@@ -218,6 +218,19 @@ function dashboard_stats(int $schoolId, string $yearCode): array
     ];
 }
 
+/** Inline SVG icon for a status (12px, inherits currentColor) */
+function status_icon(string $status): string
+{
+    $paths = match($status) {
+        'done'       => '<circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/>',
+        'inprogress' => '<circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/>',
+        default      => '<circle cx="12" cy="12" r="9"/><path d="M8 12h8"/>',
+    };
+    return '<svg class="chip-ic" width="13" height="13" viewBox="0 0 24 24" fill="none" '
+        . 'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+        . $paths . '</svg>';
+}
+
 /** Status chip HTML */
 function status_chip(string $status): string
 {
@@ -226,7 +239,7 @@ function status_chip(string $status): string
         'inprogress' => ['กำลังดำเนินการ', 'chip-prog'],
         default      => ['ยังไม่ดำเนินการ', 'chip-pend'],
     };
-    return '<span class="chip ' . $cls . '">' . $label . '</span>';
+    return '<span class="chip ' . $cls . '">' . status_icon($status) . $label . '</span>';
 }
 
 function active_year(): array

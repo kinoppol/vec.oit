@@ -2,7 +2,8 @@
 html, body { font-family: 'Sarabun', -apple-system, sans-serif; font-size: 15px; line-height: 1.55; -webkit-font-smoothing: antialiased; background: #F4F1ED; color: #221C18; }
 a { color: inherit; text-decoration: none; }
 img { display: block; max-width: 100%; }
-.chip { display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+.chip-ic { flex-shrink: 0; }
 .chip-done { background: #E5F0EA; color: #2F7A57; }
 .chip-prog { background: #F5ECD7; color: #A8701A; }
 .chip-pend { background: #EFE9E3; color: #6E645C; }
