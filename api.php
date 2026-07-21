@@ -150,6 +150,7 @@ match ($action) {
     'reset_password'   => resetPassword(),
     'toggle_user'      => toggleUser(),
     'set_user_role'    => setUserRole(),
+    'impersonate'      => impersonate(),
     'add_fiscal_year'  => addFiscalYear(),
     'set_active_year'  => setActiveYear(),
     'add_indicator'    => addIndicator(),
@@ -508,6 +509,50 @@ function setUserRole(): never {
 
     db()->prepare('UPDATE users SET role = ? WHERE id = ?')->execute([$newRole, $uid]);
     json_ok();
+}
+
+/**
+ * Impersonate a data-entry user of the same school. The acting schooladmin's
+ * session is stashed in $_SESSION['impersonator'] and restored on logout.php.
+ */
+function impersonate(): never {
+    global $schoolId, $userId, $role;
+    if ($role !== 'schooladmin') json_err('Forbidden', 403);
+    if (!empty($_SESSION['impersonator'])) json_err('กำลังสวมสิทธิ์ผู้ใช้อื่นอยู่แล้ว', 409);
+
+    $uid = (int)($_POST['user_id'] ?? 0);
+    if (!$uid || $uid === $userId) json_err('ข้อมูลไม่ถูกต้อง');
+
+    $stmt = db()->prepare('SELECT * FROM users WHERE id = ?');
+    $stmt->execute([$uid]);
+    $t = $stmt->fetch();
+    if (!$t) json_err('ไม่พบผู้ใช้', 404);
+    if ((int)$t['school_id'] !== $schoolId) json_err('Forbidden', 403);
+    if ($t['role'] !== 'user')        json_err('สวมสิทธิ์ได้เฉพาะบัญชีผู้กรอกข้อมูล', 403);
+    if ($t['status'] !== 'active')    json_err('บัญชีนี้ไม่ได้เปิดใช้งาน', 403);
+
+    // Stash the admin session, then become the target user (keep year/theme)
+    $prev = $_SESSION['user'];
+    $_SESSION['impersonator'] = $prev;
+
+    $school = null;
+    if ($t['school_id']) {
+        $s = db()->prepare('SELECT * FROM schools WHERE id = ?');
+        $s->execute([$t['school_id']]);
+        $school = $s->fetch() ?: null;
+    }
+    $_SESSION['user'] = [
+        'id'          => $t['id'],
+        'name'        => $t['full_name'],
+        'national_id' => $t['national_id'],
+        'role'        => $t['role'],
+        'school_id'   => $t['school_id'],
+        'school'      => $school,
+        'year_code'   => $prev['year_code'],
+        'year_label'  => $prev['year_label'],
+        'theme'       => $prev['theme'] ?? 'system',
+    ];
+    json_ok(['redirect' => APP_URL . '/app.php']);
 }
 
 /** Ensure a position name exists in the school's master list; return its id */

@@ -133,6 +133,13 @@ foreach ($upStmt->fetchAll() as $r) { $userPositions[(int)$r['user_id']][] = $r[
                 ถอดผู้ดูแล
               </button>
               <?php endif; ?>
+              <?php if ($role === 'schooladmin' && $u['role'] === 'user' && $u['status'] === 'active'): ?>
+              <button class="btn btn-ghost btn-xs btn-impersonate" title="เข้าใช้งานระบบในนามผู้ใช้นี้"
+                      onclick="impersonate(<?= $u['id'] ?>, <?= e(json_encode($u['full_name'])) ?>)">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+                สวมสิทธิ์
+              </button>
+              <?php endif; ?>
               <button class="icon-btn" title="รีเซ็ตรหัสผ่าน"
                       onclick="resetPassword(<?= $u['id'] ?>, <?= e(json_encode($u['full_name'])) ?>)">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
@@ -531,6 +538,15 @@ async function toggleUser(userId, status, name) {
         { title:msg + 'บัญชีผู้ใช้', confirmLabel:msg, danger:off })) return;
     apiPost({ action:'toggle_user', user_id: userId, status }).then(r => {
         r.ok ? location.reload() : showToast(r.error, 'error');
+    });
+}
+
+async function impersonate(userId, name) {
+    if (!await uiConfirm('เข้าใช้งานระบบในนามของ ' + name + '?\nคุณจะเห็นและใช้งานระบบเสมือนเป็นผู้ใช้คนนี้ เมื่อออกจากระบบจะกลับสู่บัญชีผู้ดูแลโดยอัตโนมัติ',
+        { title:'สวมสิทธิ์ผู้ใช้', confirmLabel:'สวมสิทธิ์' })) return;
+    apiPost({ action:'impersonate', user_id: userId }).then(r => {
+        if (r.ok) location.href = (r.data && r.data.redirect) ? r.data.redirect : (APP_URL + '/app.php');
+        else showToast(r.error, 'error');
     });
 }
 

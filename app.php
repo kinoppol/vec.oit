@@ -6,6 +6,10 @@ require_once __DIR__ . '/includes/functions.php';
 $user = require_auth();
 $role = $user['role'];
 
+// Impersonation state (schooladmin acting as one of their users)
+$impersonating    = !empty($_SESSION['impersonator']);
+$impersonatorName = $impersonating ? ($_SESSION['impersonator']['name'] ?? '') : '';
+
 // Handle year switch
 if (isset($_GET['year'])) {
     $_SESSION['user']['year_code']  = $_GET['year'];
@@ -152,7 +156,7 @@ $publicLink = APP_URL . '/public.php?slug=' . ($school['slug'] ?? '') . '&year='
         <div class="user-name"><?= e($user['name']) ?></div>
         <div class="user-role"><?= e($roleLabel) ?></div>
       </div>
-      <a href="<?= APP_URL ?>/logout.php" title="ออกจากระบบ" class="logout-btn">
+      <a href="<?= APP_URL ?>/logout.php" title="<?= $impersonating ? 'กลับสู่บัญชีผู้ดูแล' : 'ออกจากระบบ' ?>" class="logout-btn">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
       </a>
     </div>
@@ -181,6 +185,13 @@ $publicLink = APP_URL . '/public.php?slug=' . ($school['slug'] ?? '') . '&year='
         </div>
       </div>
     </header>
+    <?php if ($impersonating): ?>
+    <div class="imp-banner">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 11l-3 3-2-2"/></svg>
+      <span>กำลังใช้งานในนาม <strong><?= e($user['name']) ?></strong> · สวมสิทธิ์โดย <?= e($impersonatorName) ?></span>
+      <a href="<?= APP_URL ?>/logout.php" class="imp-return">กลับสู่บัญชีผู้ดูแล</a>
+    </div>
+    <?php endif; ?>
     <div class="main-content <?= $view === 'evidence' ? 'main-content--full' : '' ?>" id="mainContent">
       <?php
       $viewFile = __DIR__ . '/views/' . $view . '.php';
