@@ -120,6 +120,17 @@ foreach ($upStmt->fetchAll() as $r) { $userPositions[(int)$r['user_id']][] = $r[
             <td><?= thai_date($u['created_at']) ?></td>
             <td class="actions">
               <?php if ($u['id'] !== (int)$user['id']): ?>
+              <?php if ($u['role'] === 'user'): ?>
+              <button class="icon-btn icon-btn-ok" title="แต่งตั้งเป็นผู้ดูแลสถานศึกษา"
+                      onclick="setUserRole(<?= $u['id'] ?>, 'schooladmin', <?= e(json_encode($u['full_name'])) ?>)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/><path d="M12 2v2M12 20v2M5 12H3M21 12h-2"/></svg>
+              </button>
+              <?php elseif ($u['role'] === 'schooladmin'): ?>
+              <button class="icon-btn" title="ถอดจากผู้ดูแล เป็นผู้กรอกข้อมูล"
+                      onclick="setUserRole(<?= $u['id'] ?>, 'user', <?= e(json_encode($u['full_name'])) ?>)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/><path d="M5 20a7 7 0 0 1 14 0"/></svg>
+              </button>
+              <?php endif; ?>
               <button class="icon-btn" title="รีเซ็ตรหัสผ่าน"
                       onclick="resetPassword(<?= $u['id'] ?>, <?= e(json_encode($u['full_name'])) ?>)">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
@@ -517,6 +528,18 @@ async function toggleUser(userId, status, name) {
     if (!await uiConfirm(msg + 'บัญชีของ ' + name + '?',
         { title:msg + 'บัญชีผู้ใช้', confirmLabel:msg, danger:off })) return;
     apiPost({ action:'toggle_user', user_id: userId, status }).then(r => {
+        r.ok ? location.reload() : showToast(r.error, 'error');
+    });
+}
+
+async function setUserRole(userId, role, name) {
+    const promote = role === 'schooladmin';
+    const msg   = promote ? 'แต่งตั้งเป็นผู้ดูแลสถานศึกษา' : 'ถอดออกจากผู้ดูแล เป็นผู้กรอกข้อมูล';
+    const detail = promote
+        ? 'แต่งตั้ง ' + name + ' เป็นผู้ดูแลสถานศึกษาร่วม? ผู้ใช้จะจัดการผู้ใช้และตั้งค่าสถานศึกษาได้'
+        : 'ถอด ' + name + ' ออกจากผู้ดูแลสถานศึกษา และเปลี่ยนเป็นผู้กรอกข้อมูล?';
+    if (!await uiConfirm(detail, { title: msg, confirmLabel: promote ? 'แต่งตั้ง' : 'ถอดบทบาท', danger: !promote })) return;
+    apiPost({ action:'set_user_role', user_id: userId, role }).then(r => {
         r.ok ? location.reload() : showToast(r.error, 'error');
     });
 }

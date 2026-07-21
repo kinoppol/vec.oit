@@ -149,6 +149,7 @@ match ($action) {
     'import_rms_users' => importRmsUsers(),
     'reset_password'   => resetPassword(),
     'toggle_user'      => toggleUser(),
+    'set_user_role'    => setUserRole(),
     'add_fiscal_year'  => addFiscalYear(),
     'set_active_year'  => setActiveYear(),
     'add_indicator'    => addIndicator(),
@@ -466,6 +467,46 @@ function toggleUser(): never {
     if (!$chk->fetch() && $role !== 'centraladmin') json_err('Forbidden', 403);
 
     db()->prepare('UPDATE users SET status = ? WHERE id = ?')->execute([$status, $uid]);
+    json_ok();
+}
+
+/**
+ * Promote/demote a user between 'user' and 'schooladmin' within the same school.
+ * A schooladmin may appoint co-administrators or step someone back down to a
+ * data-entry user. centraladmin may do this for any school.
+ */
+function setUserRole(): never {
+    global $schoolId, $userId, $role;
+    if (!in_array($role, ['schooladmin','centraladmin'])) json_err('Forbidden', 403);
+
+    $uid     = (int)($_POST['user_id'] ?? 0);
+    $newRole = $_POST['role'] ?? '';
+    if (!$uid || !in_array($newRole, ['user','schooladmin'], true)) json_err('ข้อมูลไม่ถูกต้อง');
+    if ($uid === $userId) json_err('ไม่สามารถเปลี่ยนบทบาทของตนเองได้');
+
+    // Load the target; must belong to the acting school (unless centraladmin)
+    $chk = db()->prepare('SELECT id, school_id, role FROM users WHERE id = ?');
+    $chk->execute([$uid]);
+    $target = $chk->fetch();
+    if (!$target) json_err('ไม่พบผู้ใช้', 404);
+    if ($role !== 'centraladmin' && (int)$target['school_id'] !== $schoolId) json_err('Forbidden', 403);
+
+    // Never touch a central admin account through this endpoint
+    if ($target['role'] === 'centraladmin') json_err('ไม่สามารถเปลี่ยนบทบาทผู้ดูแลส่วนกลางได้', 403);
+
+    if ($target['role'] === $newRole) json_ok(); // no-op
+
+    // Guard: don't remove the last active schooladmin of a school
+    if ($target['role'] === 'schooladmin' && $newRole === 'user') {
+        $cnt = db()->prepare("
+            SELECT COUNT(*) FROM users
+            WHERE school_id = ? AND role = 'schooladmin' AND status = 'active' AND id <> ?
+        ");
+        $cnt->execute([(int)$target['school_id'], $uid]);
+        if ((int)$cnt->fetchColumn() === 0) json_err('ต้องมีผู้ดูแลสถานศึกษาอย่างน้อย 1 คน');
+    }
+
+    db()->prepare('UPDATE users SET role = ? WHERE id = ?')->execute([$newRole, $uid]);
     json_ok();
 }
 
