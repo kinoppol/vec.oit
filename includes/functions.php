@@ -109,9 +109,21 @@ function thai_datetime(?string $dt): string
     return thai_date($dt) . ' ' . date('H:i', strtotime($dt));
 }
 
-/** Build nested indicator tree for a school + fiscal year */
-function indicator_tree(int $schoolId, string $yearCode): array
+/**
+ * Build nested indicator tree for a school + fiscal year.
+ * When $assigneeUserId is given, only indicators assigned to that user
+ * (directly, or via one of their positions) are included.
+ */
+function indicator_tree(int $schoolId, string $yearCode, ?int $assigneeUserId = null): array
 {
+    $assignSql = '';
+    $params = [':sid' => $schoolId, ':yr' => $yearCode];
+    if ($assigneeUserId !== null) {
+        $assignSql = ' AND (sis.assigned_user_id = :au
+            OR sis.assigned_position_id IN (SELECT position_id FROM user_positions WHERE user_id = :ap)) ';
+        $params[':au'] = $assigneeUserId;
+        $params[':ap'] = $assigneeUserId;
+    }
     $stmt = db()->prepare('
         SELECT sec.id AS sec_id, sec.code AS sec_code, sec.title AS sec_title, sec.sort_order AS ss,
                sub.id AS sub_id, sub.code AS sub_code, sub.title AS sub_title, sub.sort_order AS us,
@@ -128,10 +140,10 @@ function indicator_tree(int $schoolId, string $yearCode): array
                ON sis.indicator_id = ind.id AND sis.school_id = :sid
         LEFT JOIN users au ON au.id = sis.assigned_user_id
         LEFT JOIN positions ap ON ap.id = sis.assigned_position_id
-        WHERE fy.year_code = :yr
+        WHERE fy.year_code = :yr' . $assignSql . '
         ORDER BY sec.sort_order, sub.sort_order, ind.sort_order
     ');
-    $stmt->execute([':sid' => $schoolId, ':yr' => $yearCode]);
+    $stmt->execute($params);
     $rows = $stmt->fetchAll();
 
     // Evidence counts per indicator
@@ -175,9 +187,23 @@ function indicator_tree(int $schoolId, string $yearCode): array
     return array_values($tree);
 }
 
-/** Dashboard stats for a school + year */
-function dashboard_stats(int $schoolId, string $yearCode): array
+/**
+ * Dashboard stats for a school + year.
+ * When $assigneeUserId is given, counts are limited to indicators assigned
+ * to that user (directly or via a position) — matching what they can see.
+ */
+function dashboard_stats(int $schoolId, string $yearCode, ?int $assigneeUserId = null): array
 {
+    // Assignment filter (shared by both queries). sis is aliased differently in
+    // the evidence query, so build the clause against the right table alias.
+    $mkFilter = function (string $alias) use ($assigneeUserId): string {
+        if ($assigneeUserId === null) return '';
+        return " AND ({$alias}.assigned_user_id = :au
+            OR {$alias}.assigned_position_id IN (SELECT position_id FROM user_positions WHERE user_id = :ap)) ";
+    };
+
+    $assignParams = $assigneeUserId !== null ? [':au' => $assigneeUserId, ':ap' => $assigneeUserId] : [];
+
     $stmt = db()->prepare('
         SELECT
             COUNT(ind.id) AS total,
@@ -189,11 +215,13 @@ function dashboard_stats(int $schoolId, string $yearCode): array
         JOIN fiscal_years fy           ON fy.id  = sec.fiscal_year_id
         LEFT JOIN school_indicator_status sis
                ON sis.indicator_id = ind.id AND sis.school_id = :sid
-        WHERE fy.year_code = :yr
+        WHERE fy.year_code = :yr' . $mkFilter('sis') . '
     ');
-    $stmt->execute([':sid' => $schoolId, ':yr' => $yearCode]);
+    $stmt->execute([':sid' => $schoolId, ':yr' => $yearCode] + $assignParams);
     $r = $stmt->fetch();
 
+    // Note: :sid appears twice here, so use distinct placeholders (PDO in
+    // non-emulated mode does not allow reusing a named parameter).
     $stmt2 = db()->prepare('
         SELECT COUNT(*) cnt
         FROM evidences e
@@ -201,9 +229,11 @@ function dashboard_stats(int $schoolId, string $yearCode): array
         JOIN indicator_subsections sub ON sub.id = ind.subsection_id
         JOIN indicator_sections sec ON sec.id = sub.section_id
         JOIN fiscal_years fy ON fy.id = sec.fiscal_year_id
-        WHERE e.school_id = :sid AND fy.year_code = :yr
+        LEFT JOIN school_indicator_status sis2
+               ON sis2.indicator_id = ind.id AND sis2.school_id = :sid2
+        WHERE e.school_id = :sid AND fy.year_code = :yr' . $mkFilter('sis2') . '
     ');
-    $stmt2->execute([':sid' => $schoolId, ':yr' => $yearCode]);
+    $stmt2->execute([':sid' => $schoolId, ':sid2' => $schoolId, ':yr' => $yearCode] + $assignParams);
     $evCnt = (int)$stmt2->fetchColumn();
 
     $total = (int)($r['total'] ?? 0);
@@ -219,6 +249,20 @@ function dashboard_stats(int $schoolId, string $yearCode): array
         'ev_cnt'  => $evCnt,
         'pct'     => $pct,
     ];
+}
+
+/** Is this indicator assigned to the user (directly or via a position)? */
+function user_owns_indicator(int $userId, int $schoolId, int $indId): bool
+{
+    $s = db()->prepare('
+        SELECT 1 FROM school_indicator_status sis
+        WHERE sis.school_id = ? AND sis.indicator_id = ?
+          AND (sis.assigned_user_id = ?
+               OR sis.assigned_position_id IN (SELECT position_id FROM user_positions WHERE user_id = ?))
+        LIMIT 1
+    ');
+    $s->execute([$schoolId, $indId, $userId, $userId]);
+    return (bool) $s->fetchColumn();
 }
 
 /** Inline SVG icon for a status (12px, inherits currentColor) */

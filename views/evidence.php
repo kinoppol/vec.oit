@@ -1,5 +1,7 @@
 <?php
-$tree = indicator_tree($schoolId, $yearCode);
+// Data-entry users see only indicators assigned to them
+$assigneeFilter = $role === 'user' ? (int)$user['id'] : null;
+$tree = indicator_tree($schoolId, $yearCode, $assigneeFilter);
 $selectedId = isset($_GET['indicator']) ? (int)$_GET['indicator'] : 0;
 ?>
 <div class="evidence-layout">

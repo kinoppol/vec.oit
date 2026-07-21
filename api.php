@@ -34,6 +34,11 @@ if ($action === 'indicator_detail') {
     $ind = $stmt->fetch();
     if (!$ind) json_err('Not found', 404);
 
+    // A data-entry user may only open indicators assigned to them
+    if ($authUser['role'] === 'user' && !user_owns_indicator((int)$authUser['id'], $schoolId, $id)) {
+        json_err('คุณไม่ได้รับมอบหมายตัวชี้วัดนี้', 403);
+    }
+
     $evStmt = db()->prepare('SELECT * FROM evidences WHERE indicator_id = ? AND school_id = ? ORDER BY sort_order ASC, id ASC');
     $evStmt->execute([$id, $schoolId]);
     $evidences = $evStmt->fetchAll();

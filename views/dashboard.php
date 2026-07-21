@@ -1,7 +1,9 @@
 <?php
 // $schoolId, $yearCode, $user already set in app.php
-$stats = dashboard_stats($schoolId, $yearCode);
-$tree  = indicator_tree($schoolId, $yearCode);
+// Data-entry users see only indicators assigned to them
+$assigneeFilter = $role === 'user' ? (int)$user['id'] : null;
+$stats = dashboard_stats($schoolId, $yearCode, $assigneeFilter);
+$tree  = indicator_tree($schoolId, $yearCode, $assigneeFilter);
 
 // Pending indicators list (top 6)
 $pending = [];
