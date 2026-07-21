@@ -658,6 +658,12 @@ select.form-input { appearance: none; background-image: url("data:image/svg+xml,
 .icon-btn-danger:hover { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
 .icon-btn-ok:hover { background: var(--success-soft); border-color: var(--success); color: var(--success); }
 
+/* Role appoint / demote buttons (users table) */
+.btn-appoint { color: var(--success); border-color: var(--success); white-space: nowrap; }
+.btn-appoint:hover { background: var(--success-soft); }
+.btn-demote { color: var(--text-secondary); white-space: nowrap; }
+.btn-demote:hover { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
+
 /* ── Alert ── */
 .alert {
   padding: 11px 14px; border-radius: 9px;

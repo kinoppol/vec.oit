@@ -121,14 +121,16 @@ foreach ($upStmt->fetchAll() as $r) { $userPositions[(int)$r['user_id']][] = $r[
             <td class="actions">
               <?php if ($u['id'] !== (int)$user['id']): ?>
               <?php if ($u['role'] === 'user'): ?>
-              <button class="icon-btn icon-btn-ok" title="แต่งตั้งเป็นผู้ดูแลสถานศึกษา"
+              <button class="btn btn-ghost btn-xs btn-appoint" title="แต่งตั้งเป็นผู้ดูแลสถานศึกษาร่วม"
                       onclick="setUserRole(<?= $u['id'] ?>, 'schooladmin', <?= e(json_encode($u['full_name'])) ?>)">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/><path d="M12 2v2M12 20v2M5 12H3M21 12h-2"/></svg>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
+                ตั้งเป็นผู้ดูแล
               </button>
               <?php elseif ($u['role'] === 'schooladmin'): ?>
-              <button class="icon-btn" title="ถอดจากผู้ดูแล เป็นผู้กรอกข้อมูล"
+              <button class="btn btn-ghost btn-xs btn-demote" title="ถอดจากผู้ดูแล เป็นผู้กรอกข้อมูล"
                       onclick="setUserRole(<?= $u['id'] ?>, 'user', <?= e(json_encode($u['full_name'])) ?>)">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/><path d="M5 20a7 7 0 0 1 14 0"/></svg>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 11h-6"/></svg>
+                ถอดผู้ดูแล
               </button>
               <?php endif; ?>
               <button class="icon-btn" title="รีเซ็ตรหัสผ่าน"
