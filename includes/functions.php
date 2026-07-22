@@ -130,7 +130,7 @@ function indicator_tree(int $schoolId, string $yearCode, ?int $assigneeUserId = 
                ind.id AS ind_id, ind.code AS ind_code, ind.title AS ind_title,
                ind.criteria, ind.sort_order AS is_,
                COALESCE(sis.status,"pending") AS status,
-               sis.assigned_user_id, au.full_name AS assignee_name,
+               sis.assigned_user_id, au.full_name AS assignee_name, au.avatar AS assignee_avatar,
                sis.assigned_position_id, ap.name AS assignee_pos_name
         FROM indicators ind
         JOIN indicator_subsections sub ON sub.id = ind.subsection_id
@@ -178,6 +178,7 @@ function indicator_tree(int $schoolId, string $yearCode, ?int $assigneeUserId = 
             'ev_count' => $ec[$r['ind_id']] ?? 0,
             'assigned_user_id' => $r['assigned_user_id'] ? (int)$r['assigned_user_id'] : null,
             'assignee_name'    => $r['assignee_name'] ?? null,
+            'assignee_avatar'  => $r['assignee_avatar'] ?? null,
             'assignee_pos_name'=> $r['assignee_pos_name'] ?? null,
         ];
     }

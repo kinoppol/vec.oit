@@ -219,6 +219,19 @@ function escHtml(s) {
         ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
 
+// First meaningful character of a name, ignoring Thai courtesy prefixes.
+function nameInitial(name) {
+    const t = String(name || '').replace(/^(นาย|นางสาว|นาง)\s*/, '').trim();
+    return (t || String(name || '').trim()).charAt(0);
+}
+
+// Small avatar markup: photo if pic URL given, else an initial circle.
+function avatarMini(pic, name) {
+    return pic
+        ? '<span class="avatar avatar-xs avatar-img"><img src="' + escHtml(pic) + '" alt=""></span>'
+        : '<span class="avatar avatar-xs">' + escHtml(nameInitial(name)) + '</span>';
+}
+
 function initAssignee() {
     const box = document.querySelector('.assignee-ac');
     if (!box) return;
@@ -252,10 +265,12 @@ function initAssignee() {
         }
         if (usrList.length) {
             html += '<div class="assignee-group">บุคคล</div>';
-            html += usrList.map(u => '<div class="assignee-opt" data-type="user" data-id="' + u.id + '">'
+            html += usrList.map(u => '<div class="assignee-opt assignee-opt-user" data-type="user" data-id="' + u.id + '">'
+                + avatarMini(u.pic, u.name)
+                + '<span class="ao-text">'
                 + '<span class="ao-name">' + escHtml(u.name) + (u.admin ? ' <span class="ao-admin">ผู้ดูแล</span>' : '') + '</span>'
                 + ((u.nick || u.pos) ? '<span class="ao-sub">' + [u.nick, u.pos].filter(Boolean).map(escHtml).join(' · ') + '</span>' : '')
-                + '</div>').join('');
+                + '</span></div>').join('');
         }
         if (!posList.length && !usrList.length && q) html += '<div class="assignee-empty">ไม่พบบุคคลหรือตำแหน่ง</div>';
         menu.innerHTML = html;

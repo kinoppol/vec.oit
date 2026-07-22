@@ -64,6 +64,7 @@
             'nick'  => $su['nickname'] ?? '',
             'pos'   => $su['position'] ?? '',
             'admin' => $su['role'] === 'schooladmin',
+            'pic'   => user_avatar_url($su),
         ], $schoolUsers ?? []),
         'positions' => array_map(fn($p) => [
             'id' => (int)$p['id'], 'name' => $p['name'], 'n' => (int)$p['n'],
@@ -76,7 +77,11 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         ตำแหน่ง: <?= e($ind['assignee_pos_name'] ?? '') ?>
       <?php elseif ($curType === 'user'): ?>
+        <?php if (!empty($ind['assignee_avatar'])): ?>
+        <span class="avatar avatar-xs avatar-img"><img src="<?= e(user_avatar_url(['avatar' => $ind['assignee_avatar']])) ?>" alt=""></span>
+        <?php else: ?>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <?php endif; ?>
         <?= e($ind['assignee_name']) ?>
       <?php else: ?>
         <span class="assignee-none">ยังไม่มีการมอบหมายผู้รับผิดชอบ</span>

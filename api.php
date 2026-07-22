@@ -22,7 +22,7 @@ if ($action === 'indicator_detail') {
 
     $stmt = db()->prepare('
         SELECT ind.*, COALESCE(sis.status,"pending") AS status, sis.note AS status_note,
-               sis.assigned_user_id, au.full_name AS assignee_name,
+               sis.assigned_user_id, au.full_name AS assignee_name, au.avatar AS assignee_avatar,
                sis.assigned_position_id, ap.name AS assignee_pos_name
         FROM indicators ind
         LEFT JOIN school_indicator_status sis ON sis.indicator_id = ind.id AND sis.school_id = :sid
@@ -49,7 +49,7 @@ if ($action === 'indicator_detail') {
     $schoolUsers = [];
     $schoolPositions = [];
     if ($canAssign) {
-        $uStmt = db()->prepare('SELECT id, full_name, nickname, position, role FROM users WHERE school_id = ? AND status = "active" ORDER BY role DESC, full_name');
+        $uStmt = db()->prepare('SELECT id, full_name, nickname, position, role, avatar FROM users WHERE school_id = ? AND status = "active" ORDER BY role DESC, full_name');
         $uStmt->execute([$schoolId]);
         $schoolUsers = $uStmt->fetchAll();
 

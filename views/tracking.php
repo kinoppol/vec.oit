@@ -16,11 +16,12 @@ foreach ($tree as $sec) {
 
 $groups = [];
 foreach ($all as $ind) {
+    $avatar = null;
     if (!empty($ind['assignee_pos_name'])) { $k = 'p|' . $ind['assignee_pos_name']; $label = $ind['assignee_pos_name']; $type = 'position'; }
-    elseif (!empty($ind['assignee_name']))  { $k = 'u|' . $ind['assignee_name'];  $label = $ind['assignee_name'];  $type = 'user'; }
+    elseif (!empty($ind['assignee_name']))  { $k = 'u|' . $ind['assignee_name'];  $label = $ind['assignee_name'];  $type = 'user'; $avatar = $ind['assignee_avatar'] ?? null; }
     else { $k = 'none'; $label = 'ยังไม่มอบหมาย'; $type = 'none'; }
 
-    $groups[$k] ??= ['label' => $label, 'type' => $type, 'inds' => [], 'done' => 0, 'prog' => 0, 'pend' => 0];
+    $groups[$k] ??= ['label' => $label, 'type' => $type, 'avatar' => $avatar, 'inds' => [], 'done' => 0, 'prog' => 0, 'pend' => 0];
     $groups[$k]['inds'][] = $ind;
     if ($ind['status'] === 'done')            $groups[$k]['done']++;
     elseif ($ind['status'] === 'inprogress')  $groups[$k]['prog']++;
@@ -86,8 +87,10 @@ $pct = $total ? round($done / $total * 100) : 0;
     ?>
     <div class="track-group" data-label="<?= e(mb_strtolower($g['label'])) ?>">
       <div class="track-group-hdr">
-        <span class="track-avatar track-avatar-<?= e($g['type']) ?>">
-          <?php if ($g['type'] === 'position'): ?>
+        <span class="track-avatar track-avatar-<?= e($g['type']) ?><?= !empty($g['avatar']) ? ' track-avatar-img' : '' ?>">
+          <?php if (!empty($g['avatar'])): ?>
+          <img src="<?= e(user_avatar_url(['avatar' => $g['avatar']])) ?>" alt="">
+          <?php elseif ($g['type'] === 'position'): ?>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           <?php elseif ($g['type'] === 'user'): ?>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
