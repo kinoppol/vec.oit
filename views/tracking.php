@@ -43,6 +43,9 @@ foreach ($puStmt->fetchAll() as $r) {
 }
 foreach ($groups as &$g) {
     $g['users'] = $g['type'] === 'position' ? ($posUsers[$g['label']] ?? []) : [];
+    // Sort each group's indicators by the numeric part of the code (O1, O2 … O23)
+    usort($g['inds'], fn($a, $b) =>
+        (int)preg_replace('/\D/', '', $a['code']) <=> (int)preg_replace('/\D/', '', $b['code']));
 }
 unset($g);
 
