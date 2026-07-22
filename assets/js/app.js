@@ -538,19 +538,9 @@ async function deleteEvidence(evId, indId) {
     });
 }
 
-// ── Close modal on backdrop click ────────────────────────
-document.querySelectorAll('.modal-backdrop').forEach(bd => {
-    bd.addEventListener('click', function (e) {
-        if (e.target === this) this.classList.add('hidden');
-    });
-});
-
-// Close on Escape
-document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') {
-        document.querySelectorAll('.modal-backdrop:not(.hidden)').forEach(m => m.classList.add('hidden'));
-    }
-});
+// Form modals close only via their ✕ / cancel buttons (prevents accidental
+// dismissal that would lose entered data). Backdrop-click and Escape are
+// intentionally NOT wired up here.
 
 // hidden class for link-type toggle
 document.head.insertAdjacentHTML('beforeend', '<style>.hidden{display:none!important}</style>');
