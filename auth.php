@@ -56,6 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'role'       => $u['role'],
                         'school_id'  => $u['school_id'],
                         'school'     => $school,
+                        'avatar'     => $u['avatar'] ?? null,
                         'year_code'  => $fy['year_code'],
                         'year_label' => $fy['label'],
                         'theme'      => $_SESSION['theme'] ?? 'system',
@@ -116,7 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 db()->prepare('UPDATE users SET password_hash=?, must_change_pw=0, status="active" WHERE id=?')
                     ->execute([$hash, $uid]);
                 $stmt = db()->prepare('
-                    SELECT u.id AS uid, u.full_name, u.national_id, u.role, u.school_id,
+                    SELECT u.id AS uid, u.full_name, u.national_id, u.role, u.school_id, u.avatar,
                            s.id AS sid, s.name AS school_name, s.province, s.slug, s.emblem_path, s.code, s.website
                     FROM users u LEFT JOIN schools s ON s.id = u.school_id WHERE u.id=?
                 ');
@@ -130,6 +131,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'role'       => $u['role'],
                     'school_id'  => $u['school_id'],
                     'school'     => $u['school_id'] ? ['id'=>$u['sid'],'name'=>$u['school_name'],'province'=>$u['province'],'slug'=>$u['slug'],'emblem_path'=>$u['emblem_path'],'code'=>$u['code'],'website'=>$u['website']] : null,
+                    'avatar'     => $u['avatar'] ?? null,
                     'year_code'  => $fy['year_code'],
                     'year_label' => $fy['label'],
                     'theme'      => 'system',

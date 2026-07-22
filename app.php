@@ -6,6 +6,13 @@ require_once __DIR__ . '/includes/functions.php';
 $user = require_auth();
 $role = $user['role'];
 
+// Pending-migration count drives the sidebar badge (centraladmin only)
+$migPending = 0;
+if ($role === 'centraladmin') {
+    require_once __DIR__ . '/includes/migrations.php';
+    try { $migPending = mig_pending_count(); } catch (Throwable $e) { $migPending = 0; }
+}
+
 // Impersonation state (schooladmin acting as one of their users)
 $impersonating    = !empty($_SESSION['impersonator']);
 $impersonatorName = $impersonating ? ($_SESSION['impersonator']['name'] ?? '') : '';
@@ -35,7 +42,7 @@ $view = $_GET['view'] ?? match($role) {
 
 // Validate view access
 $allowedViews = match($role) {
-    'centraladmin' => ['criteria', 'schools'],
+    'centraladmin' => ['criteria', 'schools', 'migration'],
     'schooladmin'  => ['dashboard', 'evidence', 'tracking', 'users', 'school'],
     default        => ['dashboard', 'evidence'],
 };
@@ -67,6 +74,7 @@ $pageTitle = match($view) {
     'school'    => 'ข้อมูลสถานศึกษา',
     'criteria'  => 'เกณฑ์ & ปีงบประมาณ',
     'schools'   => 'สถานศึกษาที่สมัครใช้งาน',
+    'migration' => 'ปรับปรุงฐานข้อมูล (Migration)',
     default     => '',
 };
 
@@ -143,6 +151,11 @@ $publicLink = APP_URL . '/public.php?slug=' . ($school['slug'] ?? '') . '&year='
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-5h6v5M9 10h.01M15 10h.01M9 13h.01M15 13h.01"/></svg>
         สถานศึกษาที่สมัคร
       </a>
+      <a href="?view=migration" class="nav-item <?= $view==='migration'?'active':'' ?>">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg>
+        ปรับปรุงฐานข้อมูล
+        <?php if ($migPending): ?><span class="nav-badge"><?= (int)$migPending ?></span><?php endif; ?>
+      </a>
       <?php endif; ?>
       <div class="nav-group-label" style="margin-top:18px">สาธารณะ</div>
       <a href="<?= e($publicLink) ?>" target="_blank" class="nav-item">
@@ -151,7 +164,11 @@ $publicLink = APP_URL . '/public.php?slug=' . ($school['slug'] ?? '') . '&year='
       </a>
     </nav>
     <div class="sidebar-user">
+      <?php if ($avatarUrl = user_avatar_url($user)): ?>
+      <div class="user-avatar user-avatar-img"><img src="<?= e($avatarUrl) ?>" alt=""></div>
+      <?php else: ?>
       <div class="user-avatar"><?= e($initial) ?></div>
+      <?php endif; ?>
       <div class="user-info">
         <div class="user-name"><?= e($user['name']) ?></div>
         <div class="user-role"><?= e($roleLabel) ?></div>

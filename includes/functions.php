@@ -311,3 +311,35 @@ function school_emblem_url(array $school): string
     }
     return APP_URL . '/assets/ovec-logo.jpg';
 }
+
+/** First meaningful character of a name, ignoring Thai courtesy prefixes. */
+function user_initial(string $fullName): string
+{
+    $trimmed = preg_replace('/^(นาย|นางสาว|นาง)\s*/u', '', trim($fullName));
+    $c = mb_substr(trim((string)$trimmed), 0, 1);
+    return $c !== '' ? $c : mb_substr(trim($fullName), 0, 1);
+}
+
+/** Public URL of a user's downloaded profile picture, or null if none. */
+function user_avatar_url(array $u): ?string
+{
+    return !empty($u['avatar'])
+        ? APP_URL . '/uploads/avatars/' . rawurlencode($u['avatar'])
+        : null;
+}
+
+/**
+ * Avatar markup for a user: <img> if they have a downloaded picture,
+ * otherwise a circle with their initial. $u needs keys full_name (or name)
+ * and avatar. $cls is added to the wrapper element.
+ */
+function user_avatar_html(array $u, string $cls = ''): string
+{
+    $name = (string)($u['full_name'] ?? $u['name'] ?? '');
+    $url  = user_avatar_url($u);
+    if ($url !== null) {
+        return '<span class="avatar ' . e($cls) . ' avatar-img"><img src="' . e($url)
+             . '" alt="" loading="lazy"></span>';
+    }
+    return '<span class="avatar ' . e($cls) . '">' . e(user_initial($name)) . '</span>';
+}

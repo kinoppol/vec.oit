@@ -87,6 +87,8 @@ Key column names to remember (these have caused past mismatches):
 - `schools.status` ENUM: `'active'`, `'inactive'`, `'pending'`
 - `evidences.title` (not `name`), `evidences.type` (NOT NULL, default `'link'`)
 - `school_indicator_status.note` — exists (text field for optional status annotation)
+- `users.avatar` — filename under `uploads/avatars/` (downloaded from RMS `people_pic`); NULL → UI falls back to initials via `user_avatar_html()`
+- `users.from_rms` TINYINT — 1 if imported from an external RMS. `reset_password` returns `{rms:true}` (no local reset) for these, directing the admin to change the password at the RMS instead
 
 ## Roles and access
 

@@ -163,8 +163,25 @@ match ($action) {
     'import_indicators'=> importIndicators(),
     'approve_school'   => approveSchool(),
     'set_school_status'=> setSchoolStatus(),
+    'run_migrations'   => runMigrations(),
     default            => json_err('Unknown action', 400),
 };
+
+// ─────────────────────────────────────────────────────────────
+function runMigrations(): never {
+    global $role;
+    if ($role !== 'centraladmin') json_err('Forbidden', 403);
+    require_once __DIR__ . '/includes/migrations.php';
+    $run = mig_run();
+    if ($run['hadError']) {
+        json_err(end($run['results'])['msg'] ?? 'Migration failed', 500);
+    }
+    json_ok([
+        'results' => $run['results'],
+        'ranAny'  => $run['ranAny'],
+        'pending' => mig_pending_count(),
+    ]);
+}
 
 // ─────────────────────────────────────────────────────────────
 function updateStatus(): never {
@@ -450,9 +467,22 @@ function resetPassword(): never {
     $uid = (int)($_POST['user_id'] ?? 0);
 
     // Verify user belongs to school
-    $chk = db()->prepare('SELECT id FROM users WHERE id = ? AND school_id = ?');
+    $chk = db()->prepare('SELECT id, from_rms FROM users WHERE id = ? AND school_id = ?');
     $chk->execute([$uid, $schoolId]);
-    if (!$chk->fetch() && $role !== 'centraladmin') json_err('Forbidden', 403);
+    $target = $chk->fetch();
+    if (!$target && $role !== 'centraladmin') json_err('Forbidden', 403);
+    if (!$target && $role === 'centraladmin') {
+        $chk = db()->prepare('SELECT id, from_rms FROM users WHERE id = ?');
+        $chk->execute([$uid]);
+        $target = $chk->fetch();
+    }
+    if (!$target) json_err('ไม่พบผู้ใช้', 404);
+
+    // RMS-imported accounts authenticate against the RMS; a local reset would be
+    // overwritten on the next import. Tell the admin to change it at the RMS.
+    if (!empty($target['from_rms'])) {
+        json_ok(['rms' => true]);
+    }
 
     $pw = gen_password();
     db()->prepare('UPDATE users SET password_hash = ?, must_change_pw = 1 WHERE id = ?')
@@ -722,6 +752,43 @@ function rms_fetch(string $url, ?string &$err = null, int $timeout = 20): ?strin
     return $res;
 }
 
+/**
+ * Download a profile picture from the RMS and store it under uploads/avatars/,
+ * recording the filename on users.avatar. Silently no-ops on any failure so the
+ * import keeps going and the user simply falls back to their initials.
+ */
+function rms_save_avatar(int $userId, string $url): void {
+    $body = rms_fetch($url, $err, 8);
+    if ($body === null || $body === '') return;
+    if (strlen($body) > 5 * 1024 * 1024) return; // guard against oversized files
+
+    // Validate it is actually an image and derive the extension from its type.
+    $info = @getimagesizefromstring($body);
+    if ($info === false) return;
+    $ext = match ($info[2] ?? 0) {
+        IMAGETYPE_JPEG => 'jpg',
+        IMAGETYPE_PNG  => 'png',
+        IMAGETYPE_GIF  => 'gif',
+        IMAGETYPE_WEBP => 'webp',
+        default        => '',
+    };
+    if ($ext === '') return;
+
+    $dir = UPLOAD_DIR . '/avatars';
+    if (!is_dir($dir)) @mkdir($dir, 0755, true);
+
+    $name = 'u' . $userId . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+    if (@file_put_contents($dir . '/' . $name, $body) === false) return;
+
+    // Remove any previous avatar file, then point the row at the new one.
+    $prev = db()->prepare('SELECT avatar FROM users WHERE id = ?');
+    $prev->execute([$userId]);
+    $old = (string)$prev->fetchColumn();
+    if ($old !== '' && is_file($dir . '/' . $old)) @unlink($dir . '/' . $old);
+
+    db()->prepare('UPDATE users SET avatar = ? WHERE id = ?')->execute([$name, $userId]);
+}
+
 /** Diagnostic: quickly probe the RMS endpoint and report what came back */
 function rmsPing(): never {
     global $schoolId, $role;
@@ -794,19 +861,23 @@ function importRmsUsers(): never {
             // Protect admin accounts: never overwrite an existing schooladmin/centraladmin
             // (their password, name, email, school stay intact — only role="user" rows are updated)
             $ins = db()->prepare('
-                INSERT INTO users (school_id, national_id, password_hash, full_name, nickname, email, role, status, must_change_pw)
-                VALUES (?, ?, ?, ?, ?, ?, "user", "active", 0)
+                INSERT INTO users (school_id, national_id, password_hash, full_name, nickname, email, role, status, must_change_pw, from_rms)
+                VALUES (?, ?, ?, ?, ?, ?, "user", "active", 0, 1)
                 ON DUPLICATE KEY UPDATE
                   full_name     = IF(role = "user", VALUES(full_name), full_name),
                   nickname      = IF(role = "user", VALUES(nickname), nickname),
                   email         = IF(role = "user", VALUES(email), email),
                   password_hash = IF(role = "user", VALUES(password_hash), password_hash),
-                  school_id     = IF(role = "user", VALUES(school_id), school_id)
+                  school_id     = IF(role = "user", VALUES(school_id), school_id),
+                  from_rms      = IF(role = "user", 1, from_rms)
             ');
         } catch (PDOException $e) {
-            if (($e->errorInfo[1] ?? 0) === 1054) json_err('ฐานข้อมูลยังไม่มีคอลัมน์ users.email — กรุณารัน migrate.php ก่อน', 500);
+            if (($e->errorInfo[1] ?? 0) === 1054) json_err('ฐานข้อมูลยังไม่มีคอลัมน์ users.email/from_rms — กรุณารัน migrate.php ก่อน', 500);
             throw $e;
         }
+
+        // Look up id + current avatar so we can attach a downloaded profile picture
+        $look = db()->prepare('SELECT id, role, avatar FROM users WHERE national_id = ?');
 
         $new = 0; $upd = 0;
         foreach ($slice as $it) {
@@ -814,6 +885,17 @@ function importRmsUsers(): never {
             $hash = password_hash($pass !== '' ? $pass : gen_password(), PASSWORD_DEFAULT);
             $ins->execute([$schoolId, $it['nid'], $hash, $it['name'], ($it['nick'] ?? '') ?: null, $it['email'] ?: null]);
             $ins->rowCount() === 1 ? $new++ : $upd++;
+
+            // Download a profile picture the first time we see one for this user.
+            $picUrl = trim((string)($it['pic'] ?? ''));
+            if ($picUrl !== '') {
+                $look->execute([$it['nid']]);
+                $row = $look->fetch();
+                // Only for data-entry rows, and only if they don't already have one.
+                if ($row && $row['role'] === 'user' && empty($row['avatar'])) {
+                    rms_save_avatar((int)$row['id'], $picUrl);
+                }
+            }
         }
         $next = $offset + count($slice);
         $done = $next >= $total;
@@ -860,12 +942,22 @@ function importRmsUsers(): never {
         foreach (['people_nickname', 'people_nick', 'nickname', 'people_nickname_th'] as $k) {
             if (!empty($p[$k])) { $nick = trim((string)$p[$k]); break; }
         }
+        // Profile picture: base_url + "/files/" + people_pic  →  full image URL.
+        // If people_pic is already an absolute URL, use it verbatim.
+        $pic = trim((string)($p['people_pic'] ?? ''));
+        $picUrl = '';
+        if ($pic !== '') {
+            $picUrl = preg_match('#^https?://#i', $pic)
+                ? $pic
+                : rtrim($base, '/') . '/files/' . ltrim($pic, '/');
+        }
         $items[] = [
             'nid'   => $uid,
             'name'  => $fname,
             'nick'  => $nick,
             'email' => trim((string)($p['people_email'] ?? '')),
             'pass'  => (string)($p['ath_pass'] ?? ''),
+            'pic'   => $picUrl,
         ];
     }
 

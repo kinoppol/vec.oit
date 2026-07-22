@@ -16,8 +16,7 @@
  */
 
 require_once __DIR__ . '/config/database.php';
-
-const MIGRATIONS_DIR = __DIR__ . '/database/migrations';
+require_once __DIR__ . '/includes/migrations.php';
 
 $isCli    = (PHP_SAPI === 'cli');
 $statusOnly = $isCli && (($argv[1] ?? '') === 'status');
@@ -54,25 +53,8 @@ try {
     exit(1);
 }
 
-// ── Ensure tracking table ─────────────────────────────────────
-$pdo->exec('
-    CREATE TABLE IF NOT EXISTS `schema_migrations` (
-        `id`         INT UNSIGNED AUTO_INCREMENT,
-        `migration`  VARCHAR(255) NOT NULL,
-        `applied_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (`id`),
-        UNIQUE KEY `uq_migration` (`migration`)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-');
-
 // ── Discover migrations ───────────────────────────────────────
-$files = glob(MIGRATIONS_DIR . '/*.sql') ?: [];
-sort($files, SORT_STRING);
-
-$applied = $pdo->query('SELECT migration FROM schema_migrations')->fetchAll(PDO::FETCH_COLUMN);
-$applied = array_flip($applied);
-
-if (!$files) {
+if (!mig_files()) {
     out('ไม่พบไฟล์ migration ใน database/migrations/', 'err');
     render($lines, $isCli, false);
     exit(1);
@@ -81,90 +63,25 @@ if (!$files) {
 // ── Status mode ───────────────────────────────────────────────
 if ($statusOnly) {
     out('สถานะ Migration', 'head');
-    foreach ($files as $f) {
-        $name = basename($f);
-        isset($applied[$name])
-            ? out($name . '  (applied)', 'ok')
-            : out($name . '  (pending)', 'skip');
+    foreach (mig_status() as $m) {
+        $m['applied']
+            ? out($m['name'] . '  (applied)', 'ok')
+            : out($m['name'] . '  (pending)', 'skip');
     }
     exit(0);
 }
 
 // ── Run pending ───────────────────────────────────────────────
-$ranAny = false;
-$hadError = false;
 out('เริ่มรัน migration', 'head');
-
-foreach ($files as $file) {
-    $name = basename($file);
-    if (isset($applied[$name])) {
-        out($name . ' — ข้าม (รันแล้ว)', 'skip');
-        continue;
-    }
-
-    $sql   = file_get_contents($file);
-    $stmts = parse_sql($sql);
-
-    $ok = $skip = 0;
-    $fatal = null;
-    foreach ($stmts as $stmt) {
-        try {
-            $pdo->exec($stmt);
-            $ok++;
-        } catch (PDOException $e) {
-            // PDO getCode() returns the SQLSTATE string; the MySQL error number
-            // lives in errorInfo[1]. Match on that.
-            $mysqlErr = (int) ($e->errorInfo[1] ?? 0);
-            // 1050 table exists, 1060 dup column, 1061 dup key, 1062 dup entry, 1826/1022 dup FK/key
-            if (in_array($mysqlErr, [1050, 1060, 1061, 1062, 1022, 1826], true)) {
-                $skip++;
-            } else {
-                $fatal = $e->getMessage();
-                break;
-            }
-        }
-    }
-
-    if ($fatal !== null) {
-        out($name . ' — ผิดพลาด: ' . $fatal, 'err');
-        $hadError = true;
-        break; // stop on first hard failure; migrations are ordered
-    }
-
-    // Record as applied
-    $ins = $pdo->prepare('INSERT INTO schema_migrations (migration) VALUES (?)');
-    $ins->execute([$name]);
-    $ranAny = true;
-
-    $detail = "{$ok} statement" . ($skip ? ", {$skip} ข้าม (มีอยู่แล้ว)" : '');
-    out($name . " — สำเร็จ ({$detail})", 'ok');
+$run = mig_run();
+foreach ($run['results'] as $r) {
+    out($r['msg'], $r['type']);
 }
-
-if (!$hadError && !$ranAny) {
-    out('ฐานข้อมูลเป็นเวอร์ชันล่าสุดแล้ว ไม่มี migration ค้าง', 'ok');
-}
+$hadError = $run['hadError'];
 
 render($lines, $isCli, !$hadError);
 exit($hadError ? 1 : 0);
 
-
-// ── SQL splitter: drop comment lines, split on trailing ';' ───
-function parse_sql(string $sql): array
-{
-    $stmts = [];
-    $buf   = '';
-    foreach (explode("\n", $sql) as $line) {
-        $t = trim($line);
-        if ($t === '' || str_starts_with($t, '--')) continue;
-        $buf .= $line . "\n";
-        if (str_ends_with(rtrim($line), ';')) {
-            if ($s = trim($buf)) $stmts[] = $s;
-            $buf = '';
-        }
-    }
-    if ($s = trim($buf)) $stmts[] = $s;
-    return $stmts;
-}
 
 // ── Web output ────────────────────────────────────────────────
 function render(array $lines, bool $isCli, bool $success): void

@@ -85,9 +85,17 @@ foreach ($upStmt->fetchAll() as $r) { $userPositions[(int)$r['user_id']][] = $r[
           <?php foreach ($users as $u): ?>
           <tr class="user-row" data-search="<?= e(mb_strtolower(($u['full_name'] ?? '') . ' ' . ($u['nickname'] ?? '') . ' ' . ($u['national_id'] ?? '') . ' ' . ($u['email'] ?? '') . ' ' . ($u['position'] ?? ''))) ?>">
             <td>
-              <?= e($u['full_name']) ?>
-              <?php if (!empty($u['nickname'])): ?><span class="user-nick">(<?= e($u['nickname']) ?>)</span><?php endif; ?>
-              <?php if (!empty($u['email'])): ?><div class="user-email"><?= e($u['email']) ?></div><?php endif; ?>
+              <div class="user-name-cell">
+                <?= user_avatar_html($u, 'avatar-sm') ?>
+                <div class="user-name-text">
+                  <span>
+                    <?= e($u['full_name']) ?>
+                    <?php if (!empty($u['nickname'])): ?><span class="user-nick">(<?= e($u['nickname']) ?>)</span><?php endif; ?>
+                    <?php if (!empty($u['from_rms'])): ?><span class="rms-tag" title="โอนข้อมูลจากระบบ RMS">RMS</span><?php endif; ?>
+                  </span>
+                  <?php if (!empty($u['email'])): ?><div class="user-email"><?= e($u['email']) ?></div><?php endif; ?>
+                </div>
+              </div>
             </td>
             <td class="national-id"><?= e($u['national_id']) ?></td>
             <td><?= e(match($u['role']) {
@@ -212,12 +220,22 @@ foreach ($upStmt->fetchAll() as $r) { $userPositions[(int)$r['user_id']][] = $r[
       <button class="modal-close" onclick="document.getElementById('resetModal').classList.add('hidden')">✕</button>
     </div>
     <div class="modal-body">
-      <p>รหัสผ่านชั่วคราวสำหรับ <strong id="resetName"></strong>:</p>
-      <div class="pw-display" id="resetPwDisplay"></div>
-      <p class="alert alert-info">กรุณาแจ้งรหัสผ่านนี้ให้ผู้ใช้ทราบ ระบบจะให้เปลี่ยนรหัสผ่านเมื่อเข้าสู่ระบบครั้งถัดไป</p>
+      <div id="resetPwSection">
+        <p>รหัสผ่านชั่วคราวสำหรับ <strong id="resetName"></strong>:</p>
+        <div class="pw-display" id="resetPwDisplay"></div>
+        <p class="alert alert-info">กรุณาแจ้งรหัสผ่านนี้ให้ผู้ใช้ทราบ ระบบจะให้เปลี่ยนรหัสผ่านเมื่อเข้าสู่ระบบครั้งถัดไป</p>
+      </div>
+      <div id="resetRmsSection" class="hidden">
+        <p>ผู้ใช้ <strong id="resetRmsName"></strong> โอนข้อมูลมาจากระบบ RMS</p>
+        <p class="alert alert-warn">
+          บัญชีนี้ยืนยันตัวตนด้วยรหัสผ่านจากระบบ RMS การรีเซ็ตที่นี่จะถูกเขียนทับเมื่อโอนข้อมูลครั้งถัดไป
+          กรุณาแก้ไขรหัสผ่านที่ <strong>ระบบ RMS</strong> โดยตรง
+          <span id="resetRmsLink"></span>
+        </p>
+      </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="copyResetPw()">คัดลอกรหัสผ่าน</button>
+      <button class="btn btn-ghost" id="resetCopyBtn" onclick="copyResetPw()">คัดลอกรหัสผ่าน</button>
       <button class="btn btn-primary" onclick="document.getElementById('resetModal').classList.add('hidden')">ตกลง</button>
     </div>
   </div>
@@ -279,6 +297,7 @@ foreach ($upStmt->fetchAll() as $r) { $userPositions[(int)$r['user_id']][] = $r[
 
 <script>
 const RMS_API_PATH = '<?= RMS_API_PATH ?>';
+const RMS_BASE_URL = <?= json_encode(rtrim((string)($school['rms_base_url'] ?? ''), '/'), JSON_UNESCAPED_SLASHES) ?>;
 
 // ── Edit user positions (multiple) ──
 let posTags = [];
@@ -523,11 +542,27 @@ async function resetPassword(userId, name) {
     if (!await uiConfirm('รีเซ็ตรหัสผ่านของ ' + name + ' เป็นรหัสใหม่?',
         { title:'รีเซ็ตรหัสผ่าน', confirmLabel:'รีเซ็ต' })) return;
     apiPost({ action:'reset_password', user_id: userId }).then(r => {
-        if (r.ok) {
+        if (!r.ok) { showToast(r.error, 'error'); return; }
+        const pwSec  = document.getElementById('resetPwSection');
+        const rmsSec = document.getElementById('resetRmsSection');
+        const copyBtn = document.getElementById('resetCopyBtn');
+        if (r.data && r.data.rms) {
+            // RMS-imported user: no local reset — direct them to the RMS
+            pwSec.classList.add('hidden');
+            rmsSec.classList.remove('hidden');
+            copyBtn.classList.add('hidden');
+            document.getElementById('resetRmsName').textContent = name;
+            document.getElementById('resetRmsLink').innerHTML = RMS_BASE_URL
+                ? ' — <a href="' + escHtml(RMS_BASE_URL) + '" target="_blank" rel="noopener">' + escHtml(RMS_BASE_URL) + '</a>'
+                : '';
+        } else {
+            pwSec.classList.remove('hidden');
+            rmsSec.classList.add('hidden');
+            copyBtn.classList.remove('hidden');
             document.getElementById('resetName').textContent = name;
             document.getElementById('resetPwDisplay').textContent = r.data.password;
-            document.getElementById('resetModal').classList.remove('hidden');
-        } else { showToast(r.error, 'error'); }
+        }
+        document.getElementById('resetModal').classList.remove('hidden');
     });
 }
 
