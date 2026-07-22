@@ -260,6 +260,8 @@ match ($action) {
     'import_indicators'=> importIndicators(),
     'add_criteria_file'   => addCriteriaFile(),
     'delete_criteria_file'=> deleteCriteriaFile(),
+    'add_year_file'       => addYearFile(),
+    'delete_year_file'    => deleteYearFile(),
     'approve_school'   => approveSchool(),
     'set_school_status'=> setSchoolStatus(),
     'run_migrations'   => runMigrations(),
@@ -1537,6 +1539,53 @@ function deleteCriteriaFile(): never {
     if ($fp === false) json_err('Not found', 404);
     if ($fp && file_exists(UPLOAD_DIR . '/' . $fp)) unlink(UPLOAD_DIR . '/' . $fp);
     db()->prepare('DELETE FROM indicator_files WHERE id = ?')->execute([$id]);
+    json_ok();
+}
+
+/** Central admin attaches reference documents to a whole fiscal year. Supports many files. */
+function addYearFile(): never {
+    global $role, $userId;
+    if ($role !== 'centraladmin') json_err('Forbidden', 403);
+    $yc = trim($_POST['year_code'] ?? '');
+    $fy = db()->prepare('SELECT id FROM fiscal_years WHERE year_code = ?');
+    $fy->execute([$yc]);
+    $fyId = $fy->fetchColumn();
+    if (!$fyId) json_err('ไม่พบปีงบประมาณ', 404);
+
+    if (empty($_FILES['files']['name'])) json_err('ไม่พบไฟล์ที่อัปโหลด');
+    $f     = $_FILES['files'];
+    $names = is_array($f['name'])     ? $f['name']     : [$f['name']];
+    $tmps  = is_array($f['tmp_name']) ? $f['tmp_name'] : [$f['tmp_name']];
+    $sizes = is_array($f['size'])     ? $f['size']     : [$f['size']];
+
+    $ins = db()->prepare('INSERT INTO fiscal_year_files (fiscal_year_id, title, file_path, type, uploaded_by) VALUES (?,?,?,?,?)');
+    $created = 0;
+    foreach ($names as $i => $fn) {
+        if ($fn === '' || empty($tmps[$i])) continue;
+        if ($sizes[$i] > MAX_UPLOAD) json_err('ไฟล์ "' . $fn . '" ใหญ่เกิน 10 MB');
+        $ext = strtolower(pathinfo($fn, PATHINFO_EXTENSION));
+        if (!in_array($ext, CRITERIA_ALLOWED_EXT)) json_err('ประเภทไฟล์ไม่อนุญาต: ' . $fn);
+        $newName = bin2hex(random_bytes(16)) . '.' . $ext;
+        if (!move_uploaded_file($tmps[$i], UPLOAD_DIR . '/' . $newName)) json_err('อัปโหลดไม่สำเร็จ');
+        $type = in_array($ext, ['jpg','jpeg','png','gif','webp']) ? 'image' : 'file';
+        $ins->execute([$fyId, pathinfo($fn, PATHINFO_FILENAME), $newName, $type, $userId]);
+        $created++;
+    }
+    if ($created === 0) json_err('ไม่พบไฟล์ที่อัปโหลด');
+    json_ok(['created' => $created]);
+}
+
+function deleteYearFile(): never {
+    global $role;
+    if ($role !== 'centraladmin') json_err('Forbidden', 403);
+    $id = (int)($_POST['id'] ?? 0);
+    if (!$id) json_err('Missing id');
+    $stmt = db()->prepare('SELECT file_path FROM fiscal_year_files WHERE id = ?');
+    $stmt->execute([$id]);
+    $fp = $stmt->fetchColumn();
+    if ($fp === false) json_err('Not found', 404);
+    if ($fp && file_exists(UPLOAD_DIR . '/' . $fp)) unlink(UPLOAD_DIR . '/' . $fp);
+    db()->prepare('DELETE FROM fiscal_year_files WHERE id = ?')->execute([$id]);
     json_ok();
 }
 

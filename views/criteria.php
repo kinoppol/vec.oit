@@ -51,6 +51,16 @@ if ($indIds) {
     $fStmt->execute($indIds);
     foreach ($fStmt->fetchAll() as $r) $critFiles[(int)$r['indicator_id']][] = $r;
 }
+
+// Fiscal-year-level reference files (whole year)
+$yearFiles = [];
+$fyId = null;
+foreach ($fyList as $fy) { if ($fy['year_code'] === $fyCode) $fyId = (int)$fy['id']; }
+if ($fyId) {
+    $yfStmt = db()->prepare('SELECT * FROM fiscal_year_files WHERE fiscal_year_id = ? ORDER BY id');
+    $yfStmt->execute([$fyId]);
+    $yearFiles = $yfStmt->fetchAll();
+}
 ?>
 <div class="criteria-layout">
 
@@ -93,6 +103,38 @@ if ($indIds) {
         <button class="btn btn-primary btn-sm" onclick="openAddInd()">+ เพิ่มตัวชี้วัด</button>
       </div>
     </div>
+
+    <!-- ─── FISCAL-YEAR REFERENCE FILES ─── -->
+    <div class="year-files-bar">
+      <div class="year-files-hdr">
+        <span>เอกสารประกอบการประเมินประจำปี <?= e($fyCode) ?></span>
+        <label class="btn btn-ghost btn-sm">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+          แนบไฟล์
+          <input type="file" multiple accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx" style="display:none" onchange="uploadYearFiles('<?= e($fyCode) ?>', this)">
+        </label>
+      </div>
+      <?php if ($yearFiles): ?>
+      <div class="crit-files">
+        <?php foreach ($yearFiles as $f): $url = APP_URL . '/uploads/' . rawurlencode($f['file_path']); ?>
+        <span class="crit-file">
+          <a href="<?= $url ?>" target="_blank" class="crit-file-link">
+            <?php if ($f['type'] === 'image'): ?>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+            <?php else: ?>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h11l5 5v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M14 4v5h5"/></svg>
+            <?php endif; ?>
+            <?= e($f['title']) ?>
+          </a>
+          <button class="crit-file-x" title="ลบไฟล์" onclick="deleteYearFile(<?= (int)$f['id'] ?>)">✕</button>
+        </span>
+        <?php endforeach; ?>
+      </div>
+      <?php else: ?>
+      <div class="year-files-empty">ยังไม่มีเอกสารประจำปีนี้ — แนบไฟล์เพื่อให้ทุกสถานศึกษาดาวน์โหลดได้</div>
+      <?php endif; ?>
+    </div>
+
     <div class="criteria-tree">
       <?php foreach ($tree as $sec): ?>
       <div class="crit-section">
@@ -355,6 +397,28 @@ function uploadCritFiles(indId, input) {
 async function deleteCritFile(id) {
     if (!await uiConfirm('ลบเอกสารประกอบเกณฑ์นี้?', { title:'ลบเอกสาร', confirmLabel:'ลบ', danger:true })) return;
     apiPost({ action:'delete_criteria_file', id }).then(r => {
+        r.ok ? location.reload() : showToast(r.error, 'error');
+    });
+}
+function uploadYearFiles(yearCode, input) {
+    if (!input.files || !input.files.length) return;
+    const fd = new FormData();
+    fd.append('csrf_token', CSRF_TOKEN);
+    fd.append('action', 'add_year_file');
+    fd.append('year_code', yearCode);
+    for (const f of input.files) fd.append('files[]', f);
+    showToast('กำลังอัปโหลด…');
+    fetch(APP_URL + '/api.php', { method:'POST', body: fd })
+        .then(r => r.json())
+        .then(r => {
+            if (r.ok) { showToast('แนบเอกสารประจำปี ' + r.data.created + ' ไฟล์แล้ว'); setTimeout(() => location.reload(), 700); }
+            else showToast(r.error, 'error');
+        })
+        .catch(() => showToast('เกิดข้อผิดพลาดในการอัปโหลด', 'error'));
+}
+async function deleteYearFile(id) {
+    if (!await uiConfirm('ลบเอกสารประจำปีนี้?', { title:'ลบเอกสาร', confirmLabel:'ลบ', danger:true })) return;
+    apiPost({ action:'delete_year_file', id }).then(r => {
         r.ok ? location.reload() : showToast(r.error, 'error');
     });
 }

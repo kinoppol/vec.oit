@@ -17,6 +17,16 @@ foreach ($tree as $sec) {
     }
 }
 $topPending = array_slice($pending, 0, 6);
+
+// Fiscal-year reference documents (attached by centraladmin)
+$yearFiles = [];
+$yfStmt = db()->prepare('
+    SELECT ff.* FROM fiscal_year_files ff
+    JOIN fiscal_years fy ON fy.id = ff.fiscal_year_id
+    WHERE fy.year_code = ? ORDER BY ff.id
+');
+$yfStmt->execute([$yearCode]);
+$yearFiles = $yfStmt->fetchAll();
 ?>
 <div class="dashboard-grid">
 
@@ -137,3 +147,25 @@ $topPending = array_slice($pending, 0, 6);
   <?php endif; ?>
 
 </div>
+
+<?php if ($yearFiles): ?>
+<div class="card" style="margin-top:18px">
+  <div class="card-header">เอกสารประกอบการประเมินประจำปี <?= e($yearCode) ?></div>
+  <div class="card-body">
+    <div class="crit-files">
+      <?php foreach ($yearFiles as $f): $url = APP_URL . '/uploads/' . rawurlencode($f['file_path']); ?>
+      <span class="crit-file">
+        <a href="<?= $url ?>" target="_blank" class="crit-file-link">
+          <?php if ($f['type'] === 'image'): ?>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+          <?php else: ?>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h11l5 5v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M14 4v5h5"/></svg>
+          <?php endif; ?>
+          <?= e($f['title']) ?>
+        </a>
+      </span>
+      <?php endforeach; ?>
+    </div>
+  </div>
+</div>
+<?php endif; ?>
