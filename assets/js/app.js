@@ -335,19 +335,29 @@ function openAssistantPicker(indId) {
     search.value = '';
     const render = () => {
         const q = search.value.toLowerCase().trim();
-        const list = d.schoolUsers.filter(u => !q || (u.name + ' ' + u.nick).toLowerCase().indexOf(q) !== -1).slice(0, 60);
-        document.getElementById('asstPickList').innerHTML = list.length
-            ? list.map(u => '<button type="button" class="pick-row" onclick="addAssistant(' + u.id + ')">'
-                + avatarMini(u.pic, u.name) + '<span>' + escHtml(u.name) + (u.nick ? ' <span class="user-nick">(' + escHtml(u.nick) + ')</span>' : '') + '</span></button>').join('')
-            : '<div class="pick-empty">ไม่พบผู้ใช้</div>';
+        const positions = (d.positions || []).filter(p => !q || p.name.toLowerCase().indexOf(q) !== -1).slice(0, 20);
+        const users = d.schoolUsers.filter(u => !q || (u.name + ' ' + u.nick + ' ' + (u.pos || '')).toLowerCase().indexOf(q) !== -1).slice(0, 60);
+        let html = '';
+        if (positions.length) {
+            html += '<div class="pick-group">ตำแหน่ง</div>';
+            html += positions.map(p => '<button type="button" class="pick-row" onclick="addAssistant(\'position\',' + p.id + ')">'
+                + '<span class="avatar avatar-sm track-avatar-position"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>'
+                + '<span>' + escHtml(p.name) + ' <span class="user-nick">(' + p.n + ' คน)</span></span></button>').join('');
+        }
+        if (users.length) {
+            html += '<div class="pick-group">บุคคล</div>';
+            html += users.map(u => '<button type="button" class="pick-row" onclick="addAssistant(\'user\',' + u.id + ')">'
+                + avatarMini(u.pic, u.name) + '<span>' + escHtml(u.name) + (u.nick ? ' <span class="user-nick">(' + escHtml(u.nick) + ')</span>' : '') + '</span></button>').join('');
+        }
+        document.getElementById('asstPickList').innerHTML = html || '<div class="pick-empty">ไม่พบบุคคลหรือตำแหน่ง</div>';
     };
     search.oninput = render; render();
     document.getElementById('asstModal').classList.remove('hidden');
     setTimeout(() => search.focus(), 50);
 }
-function addAssistant(userId) {
+function addAssistant(type, id) {
     const indId = document.getElementById('asstIndId').value;
-    apiPost({ action: 'add_assistant', indicator_id: indId, user_id: userId }).then(r => {
+    apiPost({ action: 'add_assistant', indicator_id: indId, target_type: type, target_id: id }).then(r => {
         if (!r.ok) { showToast(r.error, 'error'); return; }
         document.getElementById('asstModal').classList.add('hidden');
         showToast(r.data && r.data.status === 'proposed' ? 'เสนอผู้ช่วยแล้ว รอผู้ดูแลอนุมัติ' : 'เพิ่มผู้ช่วยแล้ว');

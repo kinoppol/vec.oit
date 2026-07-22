@@ -13,6 +13,7 @@ $approvedAssistants = $approvedAssistants ?? [];
 $docTasks      = $docTasks      ?? [];
 $taskAssignees = $taskAssignees ?? [];
 $schoolUsers   = $schoolUsers   ?? [];
+$schoolPositions = $schoolPositions ?? [];
 
 // Split evidence into task-linked (shown under its document task) and free (indicator-level)
 $freeEv = [];
@@ -188,9 +189,21 @@ $renderEv = function (array $ev, bool $draggable = true) use ($ind, $canManage, 
     <div class="asst-list">
       <?php foreach ($assistants as $a): ?>
       <div class="asst-item">
+        <?php if (!empty($a['is_position'])): ?>
+        <span class="avatar avatar-sm track-avatar-position" title="ตำแหน่ง">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </span>
+        <?php else: ?>
         <?= user_avatar_html(['full_name' => $a['full_name'], 'avatar' => $a['avatar']], 'avatar-sm') ?>
+        <?php endif; ?>
         <div class="asst-info">
-          <div class="asst-name"><?= e($a['full_name']) ?><?php if (!empty($a['nickname'])): ?> <span class="user-nick">(<?= e($a['nickname']) ?>)</span><?php endif; ?></div>
+          <div class="asst-name">
+            <?php if (!empty($a['is_position'])): ?>
+              <span class="track-typetag">ตำแหน่ง</span> <?= e($a['name']) ?> <span class="user-nick">(<?= (int)$a['pos_n'] ?> คน)</span>
+            <?php else: ?>
+              <?= e($a['full_name']) ?><?php if (!empty($a['nickname'])): ?> <span class="user-nick">(<?= e($a['nickname']) ?>)</span><?php endif; ?>
+            <?php endif; ?>
+          </div>
           <?php if ($a['status'] === 'approved'): ?><span class="chip chip-done">อนุมัติแล้ว</span><?php else: ?><span class="chip chip-prog">รออนุมัติ</span><?php endif; ?>
         </div>
         <div class="asst-actions">
@@ -198,7 +211,7 @@ $renderEv = function (array $ev, bool $draggable = true) use ($ind, $canManage, 
           <button class="btn btn-primary btn-xs" onclick="approveAssistant(<?= $a['id'] ?>)">อนุมัติ</button>
           <?php endif; ?>
           <?php if ($canManage): ?>
-          <button class="icon-btn icon-btn-danger" title="นำผู้ช่วยออก" onclick="removeAssistant(<?= $a['id'] ?>, <?= e(json_encode($a['full_name'])) ?>)">
+          <button class="icon-btn icon-btn-danger" title="นำผู้ช่วยออก" onclick="removeAssistant(<?= $a['id'] ?>, <?= e(json_encode($a['name'])) ?>)">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
           </button>
           <?php endif; ?>
@@ -277,7 +290,8 @@ $renderEv = function (array $ev, bool $draggable = true) use ($ind, $canManage, 
   <script type="application/json" class="team-data"><?= json_encode([
       'ind'            => (int)$ind['id'],
       'proposeOnly'    => !$isSchoolAdmin,
-      'schoolUsers'    => array_map(fn($u) => ['id'=>(int)$u['id'],'name'=>$u['full_name'],'nick'=>$u['nickname']??'','pic'=>user_avatar_url($u)], $schoolUsers),
-      'assistants'     => array_map(fn($a) => ['id'=>(int)$a['user_id'],'name'=>$a['full_name'],'pic'=>user_avatar_url($a)], $approvedAssistants),
+      'schoolUsers'    => array_map(fn($u) => ['id'=>(int)$u['id'],'name'=>$u['full_name'],'nick'=>$u['nickname']??'','pos'=>$u['position']??'','pic'=>user_avatar_url($u)], $schoolUsers),
+      'positions'      => array_map(fn($p) => ['id'=>(int)$p['id'],'name'=>$p['name'],'n'=>(int)$p['n'],'central'=>(bool)$p['central']], $schoolPositions ?? []),
+      'assistants'     => array_map(fn($a) => ['id'=>(int)$a['id'],'name'=>$a['full_name'],'pic'=>user_avatar_url($a)], $approvedAssistants),
   ], JSON_UNESCAPED_UNICODE) ?></script>
 </div>

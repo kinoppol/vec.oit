@@ -277,14 +277,17 @@ function user_owns_indicator(int $userId, int $schoolId, int $indId): bool
     return (bool) $s->fetchColumn();
 }
 
-/** True if the user is an approved assistant on this indicator. */
+/** True if the user is an approved assistant on this indicator (directly or via a position). */
 function is_indicator_assistant(int $userId, int $schoolId, int $indId): bool
 {
     $s = db()->prepare('
         SELECT 1 FROM indicator_assistants
-        WHERE school_id = ? AND indicator_id = ? AND user_id = ? AND status = "approved" LIMIT 1
+        WHERE school_id = ? AND indicator_id = ? AND status = "approved"
+          AND (user_id = ?
+               OR position_id IN (SELECT position_id FROM user_positions WHERE user_id = ?))
+        LIMIT 1
     ');
-    $s->execute([$schoolId, $indId, $userId]);
+    $s->execute([$schoolId, $indId, $userId, $userId]);
     return (bool) $s->fetchColumn();
 }
 

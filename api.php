@@ -57,17 +57,42 @@ if ($action === 'indicator_detail') {
     $canManage     = $isResponsible || $isSchoolAdmin; // manage assistants/tasks, accept files
     $canAssign     = $isSchoolAdmin;                    // reassign the responsible party
 
-    // Assistants on this indicator
+    // Assistants on this indicator (a user OR a position)
     $aStmt = db()->prepare('
-        SELECT ia.id, ia.user_id, ia.status, ia.proposed_by,
-               u.full_name, u.nickname, u.avatar
-        FROM indicator_assistants ia JOIN users u ON u.id = ia.user_id
+        SELECT ia.id, ia.user_id, ia.position_id, ia.status, ia.proposed_by,
+               u.full_name, u.nickname, u.avatar,
+               p.name AS pos_name,
+               (SELECT COUNT(*) FROM user_positions up JOIN users hu ON hu.id = up.user_id
+                WHERE up.position_id = ia.position_id AND hu.school_id = ia.school_id) AS pos_n
+        FROM indicator_assistants ia
+        LEFT JOIN users u ON u.id = ia.user_id
+        LEFT JOIN positions p ON p.id = ia.position_id
         WHERE ia.school_id = ? AND ia.indicator_id = ?
-        ORDER BY (ia.status = "approved") DESC, u.full_name
+        ORDER BY (ia.status = "approved") DESC, ia.position_id IS NOT NULL DESC, COALESCE(p.name, u.full_name)
     ');
     $aStmt->execute([$schoolId, $id]);
     $assistants = $aStmt->fetchAll();
-    $approvedAssistants = array_values(array_filter($assistants, fn($a) => $a['status'] === 'approved'));
+    // Normalize a display "name" + type for each row
+    foreach ($assistants as &$a) {
+        $a['is_position'] = !empty($a['position_id']);
+        $a['name'] = $a['is_position'] ? $a['pos_name'] : $a['full_name'];
+    }
+    unset($a);
+    // Individual approved-assistant users (direct + members of approved position-assistants) for doc tasks
+    $auStmt = db()->prepare('
+        SELECT DISTINCT u.id, u.full_name, u.nickname, u.avatar
+        FROM indicator_assistants ia
+        JOIN user_positions up ON up.position_id = ia.position_id
+        JOIN users u ON u.id = up.user_id AND u.school_id = ia.school_id AND u.status = "active"
+        WHERE ia.school_id = ? AND ia.indicator_id = ? AND ia.status = "approved" AND ia.position_id IS NOT NULL
+        UNION
+        SELECT u.id, u.full_name, u.nickname, u.avatar
+        FROM indicator_assistants ia JOIN users u ON u.id = ia.user_id
+        WHERE ia.school_id = ? AND ia.indicator_id = ? AND ia.status = "approved" AND ia.user_id IS NOT NULL
+        ORDER BY full_name
+    ');
+    $auStmt->execute([$schoolId, $id, $schoolId, $id]);
+    $approvedAssistants = $auStmt->fetchAll();
 
     // Document tasks + their assignees
     $tStmt = db()->prepare('SELECT * FROM document_tasks WHERE school_id = ? AND indicator_id = ? ORDER BY id');
@@ -94,7 +119,7 @@ if ($action === 'indicator_detail') {
         $uStmt->execute([$schoolId]);
         $schoolUsers = $uStmt->fetchAll();
     }
-    if ($canAssign) {
+    if ($canManage) {
         // Own + central positions; holder count restricted to this school's users
         $pStmt = db()->prepare('
             SELECT p.id, p.name, (p.school_id IS NULL) AS central,
@@ -532,26 +557,38 @@ function unacceptEvidence(): never {
 // ── Assistants ────────────────────────────────────────────────
 function addAssistant(): never {
     global $schoolId, $userId, $role;
-    $indId  = (int)($_POST['indicator_id'] ?? 0);
-    $target = (int)($_POST['user_id'] ?? 0);
-    if (!$indId || !$target) json_err('ข้อมูลไม่ครบ');
+    $indId = (int)($_POST['indicator_id'] ?? 0);
+    // Backward compatible: plain user_id, or target_type + target_id
+    $type  = $_POST['target_type'] ?? 'user';
+    $tid   = (int)($_POST['target_id'] ?? $_POST['user_id'] ?? 0);
+    if (!$indId || !$tid) json_err('ข้อมูลไม่ครบ');
 
     // schooladmin adds an approved assistant directly; the responsible proposes one
     $isAdmin = ($role === 'schooladmin');
     $isResp  = user_owns_indicator($userId, $schoolId, $indId);
     if (!$isAdmin && !$isResp) json_err('Forbidden', 403);
 
-    // Target must be an active user of this school
-    $chk = db()->prepare('SELECT id FROM users WHERE id = ? AND school_id = ? AND status = "active"');
-    $chk->execute([$target, $schoolId]);
-    if (!$chk->fetch()) json_err('ไม่พบผู้ใช้ในสถานศึกษานี้', 404);
-
     $status = $isAdmin ? 'approved' : 'proposed';
-    db()->prepare('
-        INSERT INTO indicator_assistants (school_id, indicator_id, user_id, status, proposed_by)
-        VALUES (?, ?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE status = IF(VALUES(status) = "approved", "approved", status)
-    ')->execute([$schoolId, $indId, $target, $status, $userId]);
+
+    if ($type === 'position') {
+        $chk = db()->prepare('SELECT id FROM positions WHERE id = ? AND (school_id = ? OR school_id IS NULL)');
+        $chk->execute([$tid, $schoolId]);
+        if (!$chk->fetch()) json_err('ไม่พบตำแหน่งนี้', 404);
+        db()->prepare('
+            INSERT INTO indicator_assistants (school_id, indicator_id, user_id, position_id, status, proposed_by)
+            VALUES (?, ?, NULL, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE status = IF(VALUES(status) = "approved", "approved", status)
+        ')->execute([$schoolId, $indId, $tid, $status, $userId]);
+    } else {
+        $chk = db()->prepare('SELECT id FROM users WHERE id = ? AND school_id = ? AND status = "active"');
+        $chk->execute([$tid, $schoolId]);
+        if (!$chk->fetch()) json_err('ไม่พบผู้ใช้ในสถานศึกษานี้', 404);
+        db()->prepare('
+            INSERT INTO indicator_assistants (school_id, indicator_id, user_id, position_id, status, proposed_by)
+            VALUES (?, ?, ?, NULL, ?, ?)
+            ON DUPLICATE KEY UPDATE status = IF(VALUES(status) = "approved", "approved", status)
+        ')->execute([$schoolId, $indId, $tid, $status, $userId]);
+    }
     json_ok(['status' => $status]);
 }
 
