@@ -10,7 +10,7 @@ $stmt->execute([$schoolId]);
 $users = $stmt->fetchAll();
 
 // Position master list (for the combobox suggestions)
-$posStmt = db()->prepare('SELECT id, name FROM positions WHERE school_id = ? ORDER BY name');
+$posStmt = db()->prepare('SELECT id, name FROM positions WHERE school_id = ? OR school_id IS NULL ORDER BY (school_id IS NULL) DESC, name');
 $posStmt->execute([$schoolId]);
 $positions = $posStmt->fetchAll();
 
@@ -393,13 +393,17 @@ async function loadPosList() {
     const items = r.data || [];
     refreshPosDatalist(items);
     if (!items.length) { box.innerHTML = '<div class="pos-empty">ยังไม่มีตำแหน่งในระบบ</div>'; return; }
-    box.innerHTML = items.map(p =>
-        '<div class="pos-row" data-id="' + p.id + '">'
-        + '<input class="form-input pos-name" value="' + escHtml(p.name) + '" maxlength="150">'
-        + '<button type="button" class="btn btn-ghost btn-sm" onclick="savePos(' + p.id + ', this)">บันทึก</button>'
-        + '<button type="button" class="icon-btn icon-btn-danger" title="ลบ" onclick="delPos(' + p.id + ')">'
-        + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>'
-        + '</button></div>').join('');
+    box.innerHTML = items.map(p => p.central
+        // Central positions are read-only for a schooladmin
+        ? '<div class="pos-row pos-row-central">'
+          + '<span class="pos-name-static">' + escHtml(p.name) + '</span>'
+          + '<span class="chip chip-done pos-central-tag">ตำแหน่งกลาง</span></div>'
+        : '<div class="pos-row" data-id="' + p.id + '">'
+          + '<input class="form-input pos-name" value="' + escHtml(p.name) + '" maxlength="150">'
+          + '<button type="button" class="btn btn-ghost btn-sm" onclick="savePos(' + p.id + ', this)">บันทึก</button>'
+          + '<button type="button" class="icon-btn icon-btn-danger" title="ลบ" onclick="delPos(' + p.id + ')">'
+          + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>'
+          + '</button></div>').join('');
 }
 async function savePos(id, btn) {
     const name = btn.closest('.pos-row').querySelector('.pos-name').value.trim();

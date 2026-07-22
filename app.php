@@ -42,7 +42,7 @@ $view = $_GET['view'] ?? match($role) {
 
 // Validate view access
 $allowedViews = match($role) {
-    'centraladmin' => ['criteria', 'schools', 'migration'],
+    'centraladmin' => ['criteria', 'schools', 'positions', 'migration'],
     'schooladmin'  => ['dashboard', 'evidence', 'tracking', 'users', 'school'],
     default        => ['dashboard', 'evidence'],
 };
@@ -74,6 +74,7 @@ $pageTitle = match($view) {
     'school'    => 'ข้อมูลสถานศึกษา',
     'criteria'  => 'เกณฑ์ & ปีงบประมาณ',
     'schools'   => 'สถานศึกษาที่สมัครใช้งาน',
+    'positions' => 'จัดการตำแหน่งกลาง',
     'migration' => 'ปรับปรุงฐานข้อมูล (Migration)',
     default     => '',
 };
@@ -150,6 +151,10 @@ $publicLink = APP_URL . '/public.php?slug=' . ($school['slug'] ?? '') . '&year='
       <a href="?view=schools" class="nav-item <?= $view==='schools'?'active':'' ?>">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-5h6v5M9 10h.01M15 10h.01M9 13h.01M15 13h.01"/></svg>
         สถานศึกษาที่สมัคร
+      </a>
+      <a href="?view=positions" class="nav-item <?= $view==='positions'?'active':'' ?>">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        จัดการตำแหน่งกลาง
       </a>
       <a href="?view=migration" class="nav-item <?= $view==='migration'?'active':'' ?>">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg>

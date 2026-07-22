@@ -95,12 +95,17 @@ if ($action === 'indicator_detail') {
         $schoolUsers = $uStmt->fetchAll();
     }
     if ($canAssign) {
+        // Own + central positions; holder count restricted to this school's users
         $pStmt = db()->prepare('
-            SELECT p.id, p.name, COUNT(up.user_id) AS n
-            FROM positions p LEFT JOIN user_positions up ON up.position_id = p.id
-            WHERE p.school_id = ? GROUP BY p.id ORDER BY p.name
+            SELECT p.id, p.name, (p.school_id IS NULL) AS central,
+                   COUNT(hu.id) AS n
+            FROM positions p
+            LEFT JOIN user_positions up ON up.position_id = p.id
+            LEFT JOIN users hu ON hu.id = up.user_id AND hu.school_id = ?
+            WHERE p.school_id = ? OR p.school_id IS NULL
+            GROUP BY p.id ORDER BY (p.school_id IS NULL) DESC, p.name
         ');
-        $pStmt->execute([$schoolId]);
+        $pStmt->execute([$schoolId, $schoolId]);
         $schoolPositions = $pStmt->fetchAll();
     }
 
@@ -199,6 +204,11 @@ match ($action) {
     'add_position'     => addPosition(),
     'rename_position'  => renamePosition(),
     'delete_position'  => deletePosition(),
+    'list_central_positions'   => listCentralPositions(),
+    'add_central_position'     => addCentralPosition(),
+    'rename_central_position'  => renameCentralPosition(),
+    'delete_central_position'  => deleteCentralPosition(),
+    'promote_position'         => promotePosition(),
     'update_rms_url'   => updateRmsUrl(),
     'rms_ping'         => rmsPing(),
     'import_rms_users' => importRmsUsers(),
@@ -268,7 +278,8 @@ function assignIndicator(): never {
         if (!$chk->fetch()) json_err('ผู้ใช้ไม่อยู่ในสถานศึกษานี้', 400);
         $uid = $tid;
     } elseif ($type === 'position' && $tid > 0) {
-        $chk = db()->prepare('SELECT id FROM positions WHERE id = ? AND school_id = ?');
+        // Own position or a central (school_id IS NULL) position
+        $chk = db()->prepare('SELECT id FROM positions WHERE id = ? AND (school_id = ? OR school_id IS NULL)');
         $chk->execute([$tid, $schoolId]);
         if (!$chk->fetch()) json_err('ไม่พบตำแหน่งนี้', 400);
         $pid = $tid;
@@ -822,6 +833,11 @@ function impersonate(): never {
 function ensure_position(int $schoolId, string $name): ?int {
     $name = trim($name);
     if ($name === '') return null;
+    // Prefer an existing central position with this name so schools share it
+    $c = db()->prepare('SELECT id FROM positions WHERE school_id IS NULL AND name = ?');
+    $c->execute([$name]);
+    if ($cid = $c->fetchColumn()) return (int)$cid;
+
     db()->prepare('INSERT IGNORE INTO positions (school_id, name) VALUES (?, ?)')->execute([$schoolId, $name]);
     $s = db()->prepare('SELECT id FROM positions WHERE school_id = ? AND name = ?');
     $s->execute([$schoolId, $name]);
@@ -874,9 +890,15 @@ function updateUserPosition(): never {
 function listPositions(): never {
     global $schoolId, $role;
     if ($role !== 'schooladmin') json_err('Forbidden', 403);
-    $st = db()->prepare('SELECT id, name FROM positions WHERE school_id = ? ORDER BY name');
+    // Own positions (editable) + central positions (read-only, shared by all schools)
+    $st = db()->prepare('
+        SELECT id, name, (school_id IS NULL) AS central
+        FROM positions WHERE school_id = ? OR school_id IS NULL
+        ORDER BY (school_id IS NULL) DESC, name
+    ');
     $st->execute([$schoolId]);
-    json_ok($st->fetchAll());
+    $rows = array_map(fn($r) => ['id' => (int)$r['id'], 'name' => $r['name'], 'central' => (bool)$r['central']], $st->fetchAll());
+    json_ok($rows);
 }
 
 function addPosition(): never {
@@ -915,9 +937,129 @@ function deletePosition(): never {
     if ($role !== 'schooladmin') json_err('Forbidden', 403);
     $id = (int)($_POST['id'] ?? 0);
     if (!$id) json_err('Missing id');
+    // Only own positions; a central position can only be removed by a centraladmin
     db()->prepare('DELETE FROM positions WHERE id = ? AND school_id = ?')->execute([$id, $schoolId]); // FK cascades junction
     refresh_position_cache($schoolId);
     json_ok();
+}
+
+/** Recompute the users.position cache for every school (after a central-position change). */
+function refresh_position_cache_all(): void {
+    db()->exec('
+        UPDATE users u SET u.position = (
+            SELECT GROUP_CONCAT(p.name ORDER BY p.name SEPARATOR ", ")
+            FROM user_positions up JOIN positions p ON p.id = up.position_id
+            WHERE up.user_id = u.id
+        )
+    ');
+}
+
+// ── Central positions (centraladmin) ──────────────────────────
+function listCentralPositions(): never {
+    global $role;
+    if ($role !== 'centraladmin') json_err('Forbidden', 403);
+    // Central positions with total holder count
+    $c = db()->query('
+        SELECT p.id, p.name, COUNT(up.user_id) AS n
+        FROM positions p LEFT JOIN user_positions up ON up.position_id = p.id
+        WHERE p.school_id IS NULL GROUP BY p.id ORDER BY p.name
+    ')->fetchAll();
+    // School positions (candidates to promote), grouped with their school name
+    $s = db()->query('
+        SELECT p.id, p.name, p.school_id, s.name AS school_name, COUNT(up.user_id) AS n
+        FROM positions p
+        JOIN schools s ON s.id = p.school_id
+        LEFT JOIN user_positions up ON up.position_id = p.id
+        WHERE p.school_id IS NOT NULL
+        GROUP BY p.id ORDER BY p.name, s.name
+    ')->fetchAll();
+    json_ok(['central' => $c, 'school' => $s]);
+}
+
+function addCentralPosition(): never {
+    global $role;
+    if ($role !== 'centraladmin') json_err('Forbidden', 403);
+    $name = trim($_POST['name'] ?? '');
+    if ($name === '' || mb_strlen($name) > 150) json_err('ชื่อตำแหน่งไม่ถูกต้อง');
+    $dup = db()->prepare('SELECT id FROM positions WHERE school_id IS NULL AND name = ?');
+    $dup->execute([$name]);
+    if ($dup->fetch()) json_err('มีตำแหน่งกลางชื่อนี้อยู่แล้ว');
+    db()->prepare('INSERT INTO positions (school_id, name) VALUES (NULL, ?)')->execute([$name]);
+    json_ok(['id' => (int)db()->lastInsertId()]);
+}
+
+function renameCentralPosition(): never {
+    global $role;
+    if ($role !== 'centraladmin') json_err('Forbidden', 403);
+    $id   = (int)($_POST['id'] ?? 0);
+    $name = trim($_POST['name'] ?? '');
+    if (!$id || $name === '' || mb_strlen($name) > 150) json_err('ข้อมูลไม่ถูกต้อง');
+    $chk = db()->prepare('SELECT id FROM positions WHERE id = ? AND school_id IS NULL');
+    $chk->execute([$id]);
+    if (!$chk->fetch()) json_err('ไม่พบตำแหน่งกลาง', 404);
+    $dup = db()->prepare('SELECT id FROM positions WHERE school_id IS NULL AND name = ? AND id <> ?');
+    $dup->execute([$name, $id]);
+    if ($dup->fetch()) json_err('มีตำแหน่งกลางชื่อนี้อยู่แล้ว');
+    db()->prepare('UPDATE positions SET name = ? WHERE id = ?')->execute([$name, $id]);
+    refresh_position_cache_all();
+    json_ok();
+}
+
+function deleteCentralPosition(): never {
+    global $role;
+    if ($role !== 'centraladmin') json_err('Forbidden', 403);
+    $id = (int)($_POST['id'] ?? 0);
+    if (!$id) json_err('Missing id');
+    db()->prepare('DELETE FROM positions WHERE id = ? AND school_id IS NULL')->execute([$id]); // FK cascades junction
+    refresh_position_cache_all();
+    json_ok();
+}
+
+/**
+ * Promote a school position to central. Absorbs every same-named school position
+ * across all schools into one central row, repointing their holders and
+ * indicator assignments so nothing is lost.
+ */
+function promotePosition(): never {
+    global $role;
+    if ($role !== 'centraladmin') json_err('Forbidden', 403);
+    $id = (int)($_POST['id'] ?? 0);
+    if (!$id) json_err('Missing id');
+
+    $row = db()->prepare('SELECT id, name, school_id FROM positions WHERE id = ?');
+    $row->execute([$id]);
+    $pos = $row->fetch();
+    if (!$pos) json_err('ไม่พบตำแหน่ง', 404);
+    if ($pos['school_id'] === null) json_ok(); // already central
+    $name = $pos['name'];
+
+    // Find or establish the central row for this name
+    $c = db()->prepare('SELECT id FROM positions WHERE school_id IS NULL AND name = ?');
+    $c->execute([$name]);
+    $centralId = $c->fetchColumn();
+    if (!$centralId) {
+        db()->prepare('UPDATE positions SET school_id = NULL WHERE id = ?')->execute([$id]);
+        $centralId = $id;
+    }
+    $centralId = (int)$centralId;
+
+    // Absorb any remaining school positions with the same name
+    $dups = db()->prepare('SELECT id, school_id FROM positions WHERE name = ? AND school_id IS NOT NULL');
+    $dups->execute([$name]);
+    $schools = [];
+    $movePos = db()->prepare('INSERT IGNORE INTO user_positions (user_id, position_id) SELECT user_id, ? FROM user_positions WHERE position_id = ?');
+    $dropUp  = db()->prepare('DELETE FROM user_positions WHERE position_id = ?');
+    $moveSis = db()->prepare('UPDATE school_indicator_status SET assigned_position_id = ? WHERE assigned_position_id = ?');
+    $dropPos = db()->prepare('DELETE FROM positions WHERE id = ?');
+    foreach ($dups->fetchAll() as $d) {
+        $movePos->execute([$centralId, (int)$d['id']]);
+        $dropUp->execute([(int)$d['id']]);
+        $moveSis->execute([$centralId, (int)$d['id']]);
+        $dropPos->execute([(int)$d['id']]);
+        $schools[(int)$d['school_id']] = true;
+    }
+    refresh_position_cache_all();
+    json_ok(['central_id' => $centralId]);
 }
 
 function updateRmsUrl(): never {

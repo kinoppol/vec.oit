@@ -90,6 +90,8 @@ Key column names to remember (these have caused past mismatches):
 - `users.avatar` — filename under `uploads/avatars/` (downloaded from RMS `people_pic`); NULL → UI falls back to initials via `user_avatar_html()`
 - `users.from_rms` TINYINT — 1 if imported from an external RMS. `reset_password` returns `{rms:true}` (no local reset) for these, directing the admin to change the password at the RMS instead
 
+**Central positions** (migration 022): `positions.school_id` is nullable — `school_id IS NULL` marks a **ตำแหน่งกลาง** usable by every school and editable only by a centraladmin (view `positions.php`, actions `*_central_position` + `promote_position`). Promoting a school position absorbs every same-named school position into one central row (repointing `user_positions` and assignments). All position pickers/queries select `school_id = ? OR school_id IS NULL`; `ensure_position()` prefers an existing central row so schools share names. Central-name uniqueness is enforced in app code (the `UNIQUE(school_id,name)` key ignores NULLs).
+
 **Team workflow tables** (migration 021): `indicator_assistants` (per school+indicator helpers; `status` `proposed`→schooladmin approves→`approved`), `document_tasks` (หัวข้อเอกสาร; description ≥10 chars), `document_task_assignees` (many assignees per task). `evidences.task_id` links a file to a document task (NULL = indicator-level); `evidences.accepted`/`accepted_by`/`accepted_at` gate publishing — an assistant's file uploads as `accepted=0`, the responsible/schooladmin's own file auto-accepts, and **public.php shows only `accepted=1`**. Access to an indicator = `user_can_access_indicator()` (responsible via `user_owns_indicator()`, approved assistant via `is_indicator_assistant()`, or task assignee); `indicator_tree()`/`dashboard_stats()` include all three when filtered by `$assigneeUserId`.
 
 ## Roles and access
@@ -98,7 +100,7 @@ Key column names to remember (these have caused past mismatches):
 |-----------------|------------------------------------------|
 | `user`          | dashboard, evidence                      |
 | `schooladmin`   | dashboard, evidence, users               |
-| `centraladmin`  | criteria, schools (no dashboard/evidence)|
+| `centraladmin`  | criteria, schools, positions, migration  |
 
 `require_role('schooladmin', 'centraladmin')` in view partials enforces this. `require_auth()` is called at the top of `app.php` and `api.php`.
 

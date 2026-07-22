@@ -34,10 +34,10 @@ $puStmt = db()->prepare('
     FROM positions p
     JOIN user_positions up ON up.position_id = p.id
     JOIN users u ON u.id = up.user_id
-    WHERE p.school_id = ? AND u.status = "active"
+    WHERE (p.school_id = ? OR p.school_id IS NULL) AND u.school_id = ? AND u.status = "active"
     ORDER BY p.name, u.full_name
 ');
-$puStmt->execute([$schoolId]);
+$puStmt->execute([$schoolId, $schoolId]);
 foreach ($puStmt->fetchAll() as $r) {
     $posUsers[$r['pos_name']][] = ['name' => $r['full_name'], 'avatar' => $r['avatar']];
 }

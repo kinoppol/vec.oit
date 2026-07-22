@@ -564,6 +564,23 @@ a.ev-name:hover { text-decoration: underline; }
 .pos-empty { padding: 20px; text-align: center; color: var(--text-tertiary); font-style: italic; }
 .user-position .pos-empty { padding: 0; }
 .pos-chip { display: inline-block; font-size: 12px; background: var(--surface-3); color: var(--text-secondary); padding: 2px 8px; border-radius: 20px; margin: 1px 3px 1px 0; }
+.pos-list { max-height: none; }
+
+/* Central-position management (centraladmin) */
+.pos-manage { display: flex; flex-direction: column; gap: 18px; max-width: 760px; }
+.pos-manage .card-body { padding: 18px; }
+.pos-hint { font-size: 12px; font-weight: 400; color: var(--text-tertiary); }
+.pos-search { max-width: 260px; }
+.pos-add-row { display: flex; gap: 10px; margin-bottom: 14px; }
+.pos-add-row .form-input { flex: 1; }
+.pos-count { font-size: 12px; color: var(--text-tertiary); white-space: nowrap; }
+.pos-row-school { justify-content: space-between; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; }
+.pos-sch-info { min-width: 0; }
+.pos-sch-name { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+.pos-sch-sub { display: block; font-size: 12px; color: var(--text-tertiary); margin-top: 2px; }
+.pos-row-central { padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+.pos-name-static { flex: 1; font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.pos-central-tag { flex-shrink: 0; }
 /* tag input */
 .tag-field { border: 1px solid var(--border); border-radius: 10px; padding: 8px; background: var(--surface-2); }
 .tag-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
