@@ -106,8 +106,9 @@ $publicLink = APP_URL . '/public.php?slug=' . ($school['slug'] ?? '') . '&year='
 <body>
 
 <div class="app-shell">
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
   <!-- ─── SIDEBAR ─── -->
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
       <div class="sidebar-logo">
         <img src="<?= e($logoUrl) ?>" alt="ตราสถานศึกษา" id="sidebarLogo">
@@ -188,6 +189,9 @@ $publicLink = APP_URL . '/public.php?slug=' . ($school['slug'] ?? '') . '&year='
   <div class="main-wrap">
     <header class="topbar">
       <div class="topbar-left">
+        <button class="hamburger" id="navToggle" aria-label="เปิดเมนู">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        </button>
         <h1 class="topbar-title"><?= e($pageTitle) ?></h1>
         <span class="year-badge"><?= e($yearLabel) ?></span>
       </div>

@@ -1,5 +1,20 @@
 'use strict';
 
+// ── Mobile sidebar (off-canvas) ───────────────────────────
+(function () {
+    const toggle   = document.getElementById('navToggle');
+    const sidebar  = document.getElementById('sidebar');
+    const backdrop = document.getElementById('sidebarBackdrop');
+    if (!toggle || !sidebar) return;
+    const open  = () => { sidebar.classList.add('sidebar--open'); document.body.classList.add('nav-open'); };
+    const close = () => { sidebar.classList.remove('sidebar--open'); document.body.classList.remove('nav-open'); };
+    toggle.addEventListener('click', () => sidebar.classList.contains('sidebar--open') ? close() : open());
+    backdrop && backdrop.addEventListener('click', close);
+    // Close after tapping a nav link
+    sidebar.querySelectorAll('.nav-item').forEach(a => a.addEventListener('click', close));
+    window.addEventListener('resize', () => { if (window.innerWidth > 820) close(); });
+})();
+
 // ── Toast ────────────────────────────────────────────────
 let toastTimer;
 function showToast(msg, type = 'ok') {

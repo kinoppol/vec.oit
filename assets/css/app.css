@@ -202,8 +202,12 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--p
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
-.topbar-left { display: flex; align-items: center; gap: 12px; }
+.topbar-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .topbar-title { font-size: 16px; font-weight: 800; color: var(--text-primary); }
+.hamburger { display: none; background: none; border: none; padding: 6px; margin: -6px 0 -6px -6px; color: var(--text-primary); cursor: pointer; border-radius: 8px; flex-shrink: 0; }
+.hamburger:hover { background: var(--surface-2); }
+.sidebar-backdrop { display: none; position: fixed; inset: 0; z-index: 90; background: rgba(0,0,0,.45); }
+body.nav-open .sidebar-backdrop { display: block; }
 .year-badge {
   padding: 3px 10px; border-radius: 20px;
   background: var(--primary-light); color: var(--primary);
@@ -1059,3 +1063,58 @@ select.form-input { appearance: none; background-image: url("data:image/svg+xml,
 @keyframes slideUp { from { opacity: 0; transform: translateX(-50%) translateY(10px) } to { opacity: 1; transform: translateX(-50%) translateY(0) } }
 @keyframes modalSlide { from { opacity: 0; transform: translateY(16px) scale(.97) } to { opacity: 1; transform: none } }
 .modal { animation: modalSlide .2s ease; }
+
+/* ══════════════ MOBILE / RESPONSIVE ══════════════ */
+@media (max-width: 820px) {
+  /* Off-canvas sidebar */
+  .hamburger { display: inline-flex; }
+  .sidebar {
+    position: fixed; top: 0; left: 0; height: 100vh; z-index: 100;
+    width: 82vw; max-width: 300px;
+    transform: translateX(-100%); transition: transform .22s ease;
+    box-shadow: 0 0 40px rgba(0,0,0,.3);
+  }
+  .sidebar.sidebar--open { transform: none; }
+
+  .topbar { padding: 0 14px; gap: 10px; }
+  .topbar-title { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .topbar-left .year-badge { display: none; }
+  .topbar-right { gap: 6px; }
+  .year-opt, .theme-opt { padding: 5px 8px; font-size: 12px; }
+
+  .main-content { padding: 14px; }
+
+  /* Grids → single/compact */
+  .dashboard-grid { grid-template-columns: 1fr; }
+  .criteria-layout { flex-direction: column; }
+  .track-stat-grid { grid-template-columns: repeat(2, 1fr); }
+  .track-metric { gap: 16px; }
+  .school-info-body { flex-direction: column; align-items: center; text-align: center; }
+  .school-meta-row { justify-content: center; flex-wrap: wrap; }
+
+  /* Toolbars wrap */
+  .users-toolbar, .track-toolbar, .rms-url-row, .pos-add-row { flex-wrap: wrap; }
+  .users-search { width: 100%; max-width: none; }
+
+  /* Evidence: stack tree over detail, allow page scroll */
+  .main-content--full { overflow-y: auto !important; }
+  .evidence-layout { flex-direction: column; height: auto; }
+  .ind-tree { width: 100%; max-height: 45vh; border-right: none; border-bottom: 1px solid var(--border); }
+  .ind-detail { padding: 16px; }
+  .status-btn-row { flex-wrap: wrap; }
+  .status-btn { flex: 1 1 46%; }
+
+  /* Public overview / detail panes stack (already handled in public.css) */
+
+  /* Modals fill width */
+  .modal-backdrop { padding: 12px; align-items: flex-start; }
+  .modal { max-width: 100%; margin-top: 10px; }
+  .form-grid, .form-grid-2 { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 460px) {
+  .track-stat-grid { grid-template-columns: repeat(2, 1fr); }
+  .card-header { flex-wrap: wrap; gap: 8px; }
+  .assignee-ac { max-width: none; }
+  .ev-thumb, .assignee-menu { max-width: 100%; }
+}
