@@ -27,6 +27,25 @@ foreach ($all as $ind) {
     elseif ($ind['status'] === 'inprogress')  $groups[$k]['prog']++;
     else                                      $groups[$k]['pend']++;
 }
+// Map each position name → its active holders (for avatars + names in the header)
+$posUsers = [];
+$puStmt = db()->prepare('
+    SELECT p.name AS pos_name, u.full_name, u.avatar
+    FROM positions p
+    JOIN user_positions up ON up.position_id = p.id
+    JOIN users u ON u.id = up.user_id
+    WHERE p.school_id = ? AND u.status = "active"
+    ORDER BY p.name, u.full_name
+');
+$puStmt->execute([$schoolId]);
+foreach ($puStmt->fetchAll() as $r) {
+    $posUsers[$r['pos_name']][] = ['name' => $r['full_name'], 'avatar' => $r['avatar']];
+}
+foreach ($groups as &$g) {
+    $g['users'] = $g['type'] === 'position' ? ($posUsers[$g['label']] ?? []) : [];
+}
+unset($g);
+
 $groups = array_values($groups);
 usort($groups, function ($a, $b) {
     if (($a['type'] === 'none') !== ($b['type'] === 'none')) return $a['type'] === 'none' ? 1 : -1;
@@ -85,12 +104,29 @@ $pct = $total ? round($done / $total * 100) : 0;
     <?php foreach ($groups as $g):
       $gt = count($g['inds']); $gpct = $gt ? round($g['done'] / $gt * 100) : 0;
     ?>
-    <div class="track-group" data-label="<?= e(mb_strtolower($g['label'])) ?>">
+    <div class="track-group" data-label="<?= e(mb_strtolower($g['label'] . ' ' . implode(' ', array_column($g['users'] ?? [], 'name')))) ?>">
       <div class="track-group-hdr">
-        <span class="track-avatar track-avatar-<?= e($g['type']) ?><?= !empty($g['avatar']) ? ' track-avatar-img' : '' ?>">
-          <?php if (!empty($g['avatar'])): ?>
+        <?php
+          // Position groups render the actual holders' photos; a single holder
+          // shows one avatar, several show a stacked cluster.
+          $holders = $g['users'] ?? [];
+        ?>
+        <?php if ($g['type'] === 'position' && count($holders) > 1): ?>
+        <span class="track-avatar-stack" title="<?= e(implode(', ', array_column($holders, 'name'))) ?>">
+          <?php foreach (array_slice($holders, 0, 3) as $h): ?>
+          <?= user_avatar_html(['full_name' => $h['name'], 'avatar' => $h['avatar']], 'avatar-sm track-stack-av') ?>
+          <?php endforeach; ?>
+          <?php if (count($holders) > 3): ?><span class="avatar avatar-sm track-stack-av track-stack-more">+<?= count($holders) - 3 ?></span><?php endif; ?>
+        </span>
+        <?php elseif ($g['type'] === 'position' && count($holders) === 1): ?>
+        <?= user_avatar_html(['full_name' => $holders[0]['name'], 'avatar' => $holders[0]['avatar']], 'track-avatar-one') ?>
+        <?php elseif (!empty($g['avatar'])): ?>
+        <span class="track-avatar track-avatar-<?= e($g['type']) ?> track-avatar-img">
           <img src="<?= e(user_avatar_url(['avatar' => $g['avatar']])) ?>" alt="">
-          <?php elseif ($g['type'] === 'position'): ?>
+        </span>
+        <?php else: ?>
+        <span class="track-avatar track-avatar-<?= e($g['type']) ?>">
+          <?php if ($g['type'] === 'position'): ?>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           <?php elseif ($g['type'] === 'user'): ?>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -98,9 +134,11 @@ $pct = $total ? round($done / $total * 100) : 0;
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
           <?php endif; ?>
         </span>
+        <?php endif; ?>
         <div class="track-group-title">
           <div class="track-group-name">
             <?= e($g['label']) ?>
+            <?php if ($g['type'] === 'position' && $holders): ?><span class="track-holders">(<?= e(implode(', ', array_column($holders, 'name'))) ?>)</span><?php endif; ?>
             <?php if ($g['type'] === 'position'): ?><span class="track-typetag">ตำแหน่ง</span><?php endif; ?>
           </div>
           <div class="track-group-sub"><?= $gt ?> ตัวชี้วัด · เสร็จ <?= $g['done'] ?> · ดำเนินการ <?= $g['prog'] ?> · ค้าง <?= $g['pend'] ?></div>

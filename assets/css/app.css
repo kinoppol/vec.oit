@@ -474,8 +474,19 @@ a.ev-name:hover { text-decoration: underline; }
 .track-avatar-position { background: color-mix(in srgb, var(--primary) 12%, transparent); color: var(--primary); }
 .track-avatar-user { background: color-mix(in srgb, var(--success) 14%, transparent); color: var(--success); }
 .track-avatar-none { background: var(--danger-soft); color: var(--danger); }
+/* Position group: single holder shows one rounded-square avatar */
+.track-avatar-one { width: 44px; height: 44px; flex-shrink: 0; border-radius: 10px; font-size: 16px; }
+/* Position group: several holders show a stacked cluster */
+.track-avatar-stack { display: inline-flex; flex-shrink: 0; align-items: center; }
+.track-avatar-stack .track-stack-av {
+  width: 34px; height: 34px; font-size: 13px; border-radius: 50%;
+  border: 2px solid var(--surface); box-sizing: border-box;
+}
+.track-avatar-stack .track-stack-av + .track-stack-av { margin-left: -12px; }
+.track-avatar-stack .track-stack-more { background: var(--surface-3); color: var(--text-secondary); font-weight: 800; }
 .track-group-title { flex: 1; min-width: 0; }
-.track-group-name { font-size: 15px; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 8px; }
+.track-group-name { font-size: 15px; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.track-holders { font-size: 12.5px; font-weight: 500; color: var(--text-tertiary); }
 .track-typetag { font-size: 11px; font-weight: 700; color: var(--primary); background: var(--danger-soft); padding: 1px 8px; border-radius: 10px; }
 .track-group-sub { font-size: 12.5px; color: var(--text-tertiary); margin-top: 2px; }
 .track-group-pct { font-size: 20px; font-weight: 800; color: var(--primary); flex-shrink: 0; }
