@@ -252,6 +252,11 @@ match ($action) {
     'set_active_year'  => setActiveYear(),
     'add_indicator'    => addIndicator(),
     'edit_indicator'   => editIndicator(),
+    'delete_indicator' => deleteIndicator(),
+    'edit_section'     => editSection(),
+    'delete_section'   => deleteSection(),
+    'edit_subsection'  => editSubsection(),
+    'delete_subsection'=> deleteSubsection(),
     'import_indicators'=> importIndicators(),
     'add_criteria_file'   => addCriteriaFile(),
     'delete_criteria_file'=> deleteCriteriaFile(),
@@ -1435,6 +1440,53 @@ function editIndicator(): never {
 
     db()->prepare('UPDATE indicators SET code=?, title=?, criteria=?, subsection_id=? WHERE id=?')
         ->execute([$code, $title, $criteria ?: null, $subId, $id]);
+    json_ok();
+}
+
+function deleteIndicator(): never {
+    global $role; if ($role !== 'centraladmin') json_err('Forbidden', 403);
+    $id = (int)($_POST['id'] ?? 0);
+    if (!$id) json_err('Missing id');
+    // FK cascades school_indicator_status, evidences, indicator_files, assistants, doc tasks
+    db()->prepare('DELETE FROM indicators WHERE id = ?')->execute([$id]);
+    json_ok();
+}
+
+function editSection(): never {
+    global $role; if ($role !== 'centraladmin') json_err('Forbidden', 403);
+    $id    = (int)($_POST['id'] ?? 0);
+    $code  = trim($_POST['code'] ?? '');
+    $title = trim($_POST['title'] ?? '');
+    if (!$id || $code === '' || $title === '') json_err('ข้อมูลไม่ครบ');
+    db()->prepare('UPDATE indicator_sections SET code = ?, title = ? WHERE id = ?')->execute([$code, $title, $id]);
+    json_ok();
+}
+
+function deleteSection(): never {
+    global $role; if ($role !== 'centraladmin') json_err('Forbidden', 403);
+    $id = (int)($_POST['id'] ?? 0);
+    if (!$id) json_err('Missing id');
+    // FK cascades subsections → indicators → status/evidence/files
+    db()->prepare('DELETE FROM indicator_sections WHERE id = ?')->execute([$id]);
+    json_ok();
+}
+
+function editSubsection(): never {
+    global $role; if ($role !== 'centraladmin') json_err('Forbidden', 403);
+    $id    = (int)($_POST['id'] ?? 0);
+    $code  = trim($_POST['code'] ?? '');
+    $title = trim($_POST['title'] ?? '');
+    if (!$id || $code === '' || $title === '') json_err('ข้อมูลไม่ครบ');
+    db()->prepare('UPDATE indicator_subsections SET code = ?, title = ? WHERE id = ?')->execute([$code, $title, $id]);
+    json_ok();
+}
+
+function deleteSubsection(): never {
+    global $role; if ($role !== 'centraladmin') json_err('Forbidden', 403);
+    $id = (int)($_POST['id'] ?? 0);
+    if (!$id) json_err('Missing id');
+    // FK cascades indicators → status/evidence/files
+    db()->prepare('DELETE FROM indicator_subsections WHERE id = ?')->execute([$id]);
     json_ok();
 }
 

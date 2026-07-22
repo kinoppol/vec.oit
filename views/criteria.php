@@ -98,13 +98,29 @@ if ($indIds) {
       <div class="crit-section">
         <div class="crit-sec-hdr">
           <span class="crit-code"><?= e($sec['code']) ?></span>
-          <span><?= e($sec['title']) ?></span>
+          <span class="crit-hdr-title"><?= e($sec['title']) ?></span>
+          <div class="crit-hdr-actions">
+            <button class="icon-btn" title="แก้ไขส่วน" onclick="editHeading('section', <?= (int)$sec['id'] ?>, <?= e(json_encode($sec['code'], JSON_UNESCAPED_UNICODE)) ?>, <?= e(json_encode($sec['title'], JSON_UNESCAPED_UNICODE)) ?>)">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="icon-btn icon-btn-danger" title="ลบส่วน (รวมตัวชี้วัดทั้งหมดในส่วนนี้)" onclick="deleteHeading('section', <?= (int)$sec['id'] ?>, <?= e(json_encode($sec['code'].' '.$sec['title'], JSON_UNESCAPED_UNICODE)) ?>)">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+            </button>
+          </div>
         </div>
         <?php foreach ($sec['subs'] as $sub): ?>
         <div class="crit-sub">
           <div class="crit-sub-hdr">
             <span class="crit-code crit-sub-code"><?= e($sub['code']) ?></span>
-            <?= e($sub['title']) ?>
+            <span class="crit-hdr-title"><?= e($sub['title']) ?></span>
+            <div class="crit-hdr-actions">
+              <button class="icon-btn" title="แก้ไขหมวดย่อย" onclick="editHeading('subsection', <?= (int)$sub['id'] ?>, <?= e(json_encode($sub['code'], JSON_UNESCAPED_UNICODE)) ?>, <?= e(json_encode($sub['title'], JSON_UNESCAPED_UNICODE)) ?>)">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </button>
+              <button class="icon-btn icon-btn-danger" title="ลบหมวดย่อย (รวมตัวชี้วัดในหมวดนี้)" onclick="deleteHeading('subsection', <?= (int)$sub['id'] ?>, <?= e(json_encode($sub['code'].' '.$sub['title'], JSON_UNESCAPED_UNICODE)) ?>)">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+              </button>
+            </div>
           </div>
           <?php foreach ($sub['inds'] as $ind): $iid = (int)$ind['ind_id']; $files = $critFiles[$iid] ?? []; ?>
           <div class="crit-ind">
@@ -123,6 +139,9 @@ if ($indIds) {
                   'sub_id' => $ind['sub_id'],
               ])) ?>)">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </button>
+              <button class="icon-btn icon-btn-danger" title="ลบตัวชี้วัด" onclick="deleteInd(<?= $iid ?>, <?= e(json_encode($ind['ind_code'].' '.$ind['ind_title'], JSON_UNESCAPED_UNICODE)) ?>)">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
               </button>
             </div>
             <?php if ($files): ?>
@@ -252,9 +271,69 @@ if ($indIds) {
   </div>
 </div>
 
+<!-- ─── EDIT HEADING (section/subsection) MODAL ─── -->
+<div class="modal-backdrop hidden" id="headingModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title" id="headingModalTitle">แก้ไขหัวข้อ</h2>
+      <button class="modal-close" onclick="document.getElementById('headingModal').classList.add('hidden')">✕</button>
+    </div>
+    <form id="headingForm" class="modal-body">
+      <?= csrf_field() ?>
+      <input type="hidden" name="action" id="headingAction">
+      <input type="hidden" name="id" id="headingId">
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label class="form-label">รหัส <span class="req">*</span></label>
+          <input type="text" name="code" id="headingCode" class="form-input" required maxlength="10">
+        </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label class="form-label">ชื่อหัวข้อ <span class="req">*</span></label>
+          <input type="text" name="title" id="headingTitle" class="form-input" required maxlength="300">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="document.getElementById('headingModal').classList.add('hidden')">ยกเลิก</button>
+        <button type="submit" class="btn btn-primary">บันทึก</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
 function openAddFY() { document.getElementById('addFYModal').classList.remove('hidden'); }
 function openImport() { document.getElementById('importModal').classList.remove('hidden'); }
+
+// ── Edit / delete headings + indicators ──
+function editHeading(type, id, code, title) {
+    document.getElementById('headingAction').value = type === 'section' ? 'edit_section' : 'edit_subsection';
+    document.getElementById('headingModalTitle').textContent = type === 'section' ? 'แก้ไขส่วน' : 'แก้ไขหมวดย่อย';
+    document.getElementById('headingId').value = id;
+    document.getElementById('headingCode').value = code;
+    document.getElementById('headingTitle').value = title;
+    document.getElementById('headingModal').classList.remove('hidden');
+}
+document.getElementById('headingForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    fetch(APP_URL + '/api.php', { method:'POST', body: new FormData(this) })
+        .then(r => r.json())
+        .then(r => { r.ok ? location.reload() : showToast(r.error, 'error'); });
+});
+async function deleteHeading(type, id, label) {
+    const isSec = type === 'section';
+    if (!await uiConfirm('ลบ “' + label + '”?\nตัวชี้วัด' + (isSec ? 'และหมวดย่อย' : '') + 'ทั้งหมดในนี้ รวมถึงหลักฐานที่สถานศึกษาแนบไว้จะถูกลบด้วย',
+        { title: isSec ? 'ลบส่วน' : 'ลบหมวดย่อย', confirmLabel: 'ลบ', danger: true })) return;
+    apiPost({ action: isSec ? 'delete_section' : 'delete_subsection', id }).then(r => {
+        r.ok ? location.reload() : showToast(r.error, 'error');
+    });
+}
+async function deleteInd(id, label) {
+    if (!await uiConfirm('ลบตัวชี้วัด “' + label + '”?\nหลักฐานที่สถานศึกษาแนบไว้กับตัวชี้วัดนี้จะถูกลบด้วย',
+        { title: 'ลบตัวชี้วัด', confirmLabel: 'ลบ', danger: true })) return;
+    apiPost({ action: 'delete_indicator', id }).then(r => {
+        r.ok ? location.reload() : showToast(r.error, 'error');
+    });
+}
 
 // ── Criteria reference files ──
 function uploadCritFiles(indId, input) {

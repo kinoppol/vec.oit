@@ -870,6 +870,10 @@ select.form-input { appearance: none; background-image: url("data:image/svg+xml,
 .crit-code { font-size: 11px; font-weight: 700; color: var(--on-primary); background: var(--primary); padding: 2px 7px; border-radius: 4px; flex-shrink: 0; }
 .crit-sub { padding: 0 14px 6px 28px; }
 .crit-sub-hdr { display: flex; align-items: center; gap: 6px; padding: 8px 0 4px; font-size: 12.5px; font-weight: 700; color: var(--text-tertiary); }
+.crit-hdr-title { flex: 1; min-width: 0; }
+.crit-hdr-actions { display: flex; gap: 4px; flex-shrink: 0; opacity: .5; transition: opacity .12s; }
+.crit-sec-hdr:hover .crit-hdr-actions, .crit-sub-hdr:hover .crit-hdr-actions { opacity: 1; }
+.crit-hdr-actions .icon-btn { width: 26px; height: 26px; }
 .crit-sub-code { color: var(--primary); }
 .crit-ind { border-bottom: 1px dashed var(--border); }
 .crit-ind:last-child { border-bottom: none; }
