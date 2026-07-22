@@ -241,6 +241,34 @@ foreach ($upStmt->fetchAll() as $r) { $userPositions[(int)$r['user_id']][] = $r[
   </div>
 </div>
 
+<!-- ─── RMS IMPORT PROGRESS MODAL ─── -->
+<div class="modal-backdrop hidden" id="rmsProgressModal">
+  <div class="modal rms-prog">
+    <div class="rms-prog-body">
+      <div class="rms-prog-icon" id="rmsProgIcon">
+        <svg class="rms-spin" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9M8 17l4 4 4-4"/>
+        </svg>
+        <svg class="rms-check" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 6 9 17l-5-5"/>
+        </svg>
+      </div>
+      <h2 class="rms-prog-title" id="rmsProgTitle">กำลังเชื่อมต่อระบบ RMS…</h2>
+      <p class="rms-prog-sub" id="rmsProgSub">โปรดรอสักครู่ ระบบกำลังดึงข้อมูลผู้ใช้</p>
+      <div class="rms-prog-track" id="rmsProgTrack">
+        <span class="rms-prog-fill" id="rmsProgFill"></span>
+      </div>
+      <div class="rms-prog-meta">
+        <span id="rmsProgCount"></span>
+        <span id="rmsProgPct"></span>
+      </div>
+    </div>
+    <div class="modal-footer rms-prog-footer hidden" id="rmsProgFooter">
+      <button class="btn btn-primary" onclick="document.getElementById('rmsProgressModal').classList.add('hidden')">ปิด</button>
+    </div>
+  </div>
+</div>
+
 <!-- ─── EDIT POSITION MODAL ─── -->
 <div class="modal-backdrop hidden" id="posModal">
   <div class="modal">
@@ -437,35 +465,87 @@ async function pingRms() {
                      : ('⚠ ไม่ใช่ JSON — ได้รับ: ' + d.peek));
 }
 
+// ── RMS import progress modal helpers ──
+const rmsProg = {
+    modal:  () => document.getElementById('rmsProgressModal'),
+    open() {
+        this.modal().classList.remove('hidden');
+        document.getElementById('rmsProgFooter').classList.add('hidden');
+        this.icon('busy');
+        this.indeterminate(true);
+        document.getElementById('rmsProgCount').textContent = '';
+        document.getElementById('rmsProgPct').textContent = '';
+    },
+    icon(state) {
+        const el = document.getElementById('rmsProgIcon');
+        el.classList.remove('is-busy', 'is-done', 'is-error');
+        el.classList.add(state === 'done' ? 'is-done' : state === 'error' ? 'is-error' : 'is-busy');
+    },
+    set(title, sub) {
+        document.getElementById('rmsProgTitle').textContent = title;
+        if (sub !== undefined) document.getElementById('rmsProgSub').textContent = sub;
+    },
+    indeterminate(on) {
+        const track = document.getElementById('rmsProgTrack');
+        const fill  = document.getElementById('rmsProgFill');
+        track.classList.toggle('indeterminate', !!on);
+        if (on) fill.style.width = '';
+    },
+    progress(done, total) {
+        const pct = total ? Math.round(done / total * 100) : 0;
+        this.indeterminate(false);
+        document.getElementById('rmsProgFill').style.width = pct + '%';
+        document.getElementById('rmsProgCount').textContent = done + ' / ' + total + ' คน';
+        document.getElementById('rmsProgPct').textContent = pct + '%';
+    },
+    finish(title, sub, isError) {
+        this.icon(isError ? 'error' : 'done');
+        this.indeterminate(false);
+        if (!isError) document.getElementById('rmsProgFill').style.width = '100%';
+        this.set(title, sub);
+        document.getElementById('rmsProgFooter').classList.remove('hidden');
+    }
+};
+
 async function importRms() {
     const url = document.getElementById('rmsBaseUrl').value.trim();
     if (!url) { showToast('กรุณาระบุ URL แหล่งข้อมูล RMS ก่อน', 'error'); return; }
-    if (!await uiConfirm('ดึงและโอนข้อมูลผู้ใช้จากระบบ RMS เข้าสถานศึกษานี้?\nURL นี้จะถูกบันทึกไว้ใช้ในการโอนครั้งต่อไปด้วย\nผู้ใช้ที่มีอยู่แล้วจะถูกปรับปรุงข้อมูล (รหัสผ่านจาก RMS)',
+    if (!await uiConfirm('ดึงและโอนข้อมูลผู้ใช้จากระบบ RMS เข้าสถานศึกษานี้?\nURL นี้จะถูกบันทึกไว้ใช้ในการโอนครั้งต่อไปด้วย\nผู้ใช้ที่มีอยู่แล้วจะถูกปรับปรุงข้อมูล (รหัสผ่านและรูปโปรไฟล์จาก RMS)',
         { title:'โอนข้อมูลผู้ใช้จาก RMS', confirmLabel:'โอนข้อมูล' })) return;
 
     const btn = document.querySelector('.rms-url-row .btn-primary');
     if (btn) btn.disabled = true;
+    rmsProg.open();
+    rmsProg.set('กำลังเชื่อมต่อระบบ RMS…', 'โปรดรอสักครู่ ระบบกำลังดึงข้อมูลผู้ใช้');
     try {
         const saved = await saveRmsUrl();
-        if (!saved.ok) { showToast(saved.error, 'error'); return; }
+        if (!saved.ok) { rmsProg.finish('บันทึก URL ไม่สำเร็จ', saved.error, true); return; }
 
-        showToast('กำลังดึงข้อมูลจาก RMS…');
         const f = await apiPost({ action:'import_rms_users', phase:'fetch' });
-        if (!f.ok) { showToast(f.error, 'error'); return; }
+        if (!f.ok) { rmsProg.finish('เชื่อมต่อ RMS ไม่สำเร็จ', f.error, true); return; }
 
         const total = f.data.total, token = f.data.token;
-        if (total === 0) { showToast('ไม่พบผู้ใช้ที่ต้องโอน (people_exit=0) · ข้าม ' + f.data.skipped + ' รายการ'); return; }
+        if (total === 0) {
+            rmsProg.finish('ไม่พบผู้ใช้ที่ต้องโอน', 'ไม่มีผู้ใช้ที่ยังทำงานอยู่ (people_exit=0) · ข้าม ' + f.data.skipped + ' รายการ');
+            return;
+        }
+
+        rmsProg.set('กำลังโอนข้อมูลผู้ใช้…', 'กำลังบันทึกผู้ใช้และดาวน์โหลดรูปโปรไฟล์');
+        rmsProg.progress(0, total);
 
         let offset = 0, newN = 0, updN = 0;
         while (true) {
             const b = await apiPost({ action:'import_rms_users', phase:'batch', token: token, offset: offset });
-            if (!b.ok) { showToast(b.error, 'error'); return; }
+            if (!b.ok) { rmsProg.finish('เกิดข้อผิดพลาดระหว่างโอน', b.error, true); return; }
             newN += b.data.new; updN += b.data.updated; offset = b.data.next;
-            showToast('กำลังโอน… ' + offset + '/' + total);
+            rmsProg.progress(offset, total);
             if (b.data.done) break;
         }
-        showToast('โอนสำเร็จ: เพิ่มใหม่ ' + newN + ', ปรับปรุง ' + updN + ' (ข้าม ' + f.data.skipped + ')');
-        setTimeout(() => location.reload(), 1400);
+        rmsProg.finish('โอนข้อมูลสำเร็จ',
+            'เพิ่มใหม่ ' + newN + ' · ปรับปรุง ' + updN + ' · ข้าม ' + f.data.skipped + ' รายการ');
+        setTimeout(() => location.reload(), 1800);
+    } catch (e) {
+        rmsProg.finish('เกิดข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', true);
     } finally {
         if (btn) btn.disabled = false;
     }

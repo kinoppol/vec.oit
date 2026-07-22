@@ -1,5 +1,6 @@
 # Uploaded files (keep directory structure via .htaccess)
 uploads/emblems/
+uploads/avatars/
 uploads/*.pdf
 uploads/*.doc
 uploads/*.docx

@@ -934,6 +934,49 @@ select.form-input { appearance: none; background-image: url("data:image/svg+xml,
 .mig-note { font-size: 12.5px; color: var(--text-tertiary); line-height: 1.6; }
 .mig-note code { font-family: monospace; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
 
+/* ── RMS import progress modal ── */
+.rms-prog { max-width: 420px; }
+.rms-prog-body { padding: 30px 28px 22px; text-align: center; }
+.rms-prog-icon {
+  width: 66px; height: 66px; border-radius: 50%; margin: 0 auto 16px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--primary-light); color: var(--primary);
+  transition: background .25s, color .25s;
+}
+.rms-prog-icon .rms-check { display: none; }
+.rms-prog-icon.is-done { background: var(--success-soft); color: var(--success); }
+.rms-prog-icon.is-done .rms-spin { display: none; }
+.rms-prog-icon.is-done .rms-check {
+  display: block; animation: rmsPop .3s cubic-bezier(.2,1.3,.5,1) both;
+}
+.rms-prog-icon.is-error { background: var(--danger-soft); color: var(--danger); }
+.rms-prog-icon.is-busy .rms-spin { animation: rmsSpin 1s linear infinite; }
+.rms-prog-title { font-size: 17px; font-weight: 800; color: var(--text-primary); margin: 0 0 5px; }
+.rms-prog-sub { font-size: 13px; color: var(--text-tertiary); margin: 0 0 18px; line-height: 1.5; min-height: 20px; }
+.rms-prog-track {
+  position: relative; height: 9px; border-radius: 6px;
+  background: var(--surface-3); overflow: hidden;
+}
+.rms-prog-fill {
+  position: absolute; inset: 0 auto 0 0; width: 0;
+  background: linear-gradient(90deg, var(--primary), var(--primary-deep));
+  border-radius: 6px; transition: width .35s ease;
+}
+.rms-prog-track.indeterminate .rms-prog-fill {
+  width: 40% !important; transition: none;
+  animation: rmsSlide 1.15s ease-in-out infinite;
+}
+.rms-prog-meta {
+  display: flex; justify-content: space-between; margin-top: 10px;
+  font-size: 12.5px; font-weight: 700; color: var(--text-secondary);
+  font-variant-numeric: tabular-nums; min-height: 16px;
+}
+.rms-prog-footer { justify-content: flex-end; }
+
+@keyframes rmsSpin  { to { transform: rotate(360deg); } }
+@keyframes rmsPop   { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes rmsSlide { 0% { left: -40%; } 100% { left: 100%; } }
+
 /* ── Animations ── */
 @keyframes fadeIn  { from { opacity: 0 } to { opacity: 1 } }
 @keyframes slideUp { from { opacity: 0; transform: translateX(-50%) translateY(10px) } to { opacity: 1; transform: translateX(-50%) translateY(0) } }
