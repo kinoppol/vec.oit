@@ -98,6 +98,9 @@ require_role('centraladmin');
         if (r.ok) { showToast('อนุมัติเป็นตำแหน่งกลางแล้ว'); load(); } else showToast(r.error, 'error');
     };
 
-    load();
+    // Defer initial load until app.js (apiPost) is available — this inline
+    // script runs before app.js in the page source.
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load);
+    else load();
 })();
 </script>
