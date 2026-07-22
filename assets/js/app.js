@@ -304,15 +304,117 @@ function assignIndicator(indId, type, id) {
     });
 }
 
+// ── Team workflow: assistants + document tasks + accept ───
+function teamData() {
+    try { return JSON.parse(document.querySelector('#indDetail .team-data').textContent); }
+    catch (e) { return { schoolUsers: [], assistants: [], proposeOnly: true, ind: 0 }; }
+}
+function reloadPanel() { if (window.selectedIndicatorId) loadIndicator(window.selectedIndicatorId); }
+
+// Assistants
+function openAssistantPicker(indId) {
+    const d = teamData();
+    document.getElementById('asstIndId').value = indId;
+    document.getElementById('asstModalTitle').textContent = d.proposeOnly ? 'เสนอผู้ช่วยผู้รับผิดชอบ' : 'เพิ่มผู้ช่วยผู้รับผิดชอบ';
+    const search = document.getElementById('asstSearch');
+    search.value = '';
+    const render = () => {
+        const q = search.value.toLowerCase().trim();
+        const list = d.schoolUsers.filter(u => !q || (u.name + ' ' + u.nick).toLowerCase().indexOf(q) !== -1).slice(0, 60);
+        document.getElementById('asstPickList').innerHTML = list.length
+            ? list.map(u => '<button type="button" class="pick-row" onclick="addAssistant(' + u.id + ')">'
+                + avatarMini(u.pic, u.name) + '<span>' + escHtml(u.name) + (u.nick ? ' <span class="user-nick">(' + escHtml(u.nick) + ')</span>' : '') + '</span></button>').join('')
+            : '<div class="pick-empty">ไม่พบผู้ใช้</div>';
+    };
+    search.oninput = render; render();
+    document.getElementById('asstModal').classList.remove('hidden');
+    setTimeout(() => search.focus(), 50);
+}
+function addAssistant(userId) {
+    const indId = document.getElementById('asstIndId').value;
+    apiPost({ action: 'add_assistant', indicator_id: indId, user_id: userId }).then(r => {
+        if (!r.ok) { showToast(r.error, 'error'); return; }
+        document.getElementById('asstModal').classList.add('hidden');
+        showToast(r.data && r.data.status === 'proposed' ? 'เสนอผู้ช่วยแล้ว รอผู้ดูแลอนุมัติ' : 'เพิ่มผู้ช่วยแล้ว');
+        reloadPanel();
+    });
+}
+function approveAssistant(id) {
+    apiPost({ action: 'approve_assistant', id }).then(r => {
+        r.ok ? (showToast('อนุมัติผู้ช่วยแล้ว'), reloadPanel()) : showToast(r.error, 'error');
+    });
+}
+async function removeAssistant(id, name) {
+    if (!await uiConfirm('นำ ' + name + ' ออกจากผู้ช่วยผู้รับผิดชอบ?', { title: 'นำผู้ช่วยออก', confirmLabel: 'นำออก', danger: true })) return;
+    apiPost({ action: 'remove_assistant', id }).then(r => {
+        r.ok ? (showToast('นำผู้ช่วยออกแล้ว'), reloadPanel()) : showToast(r.error, 'error');
+    });
+}
+
+// Document tasks
+function openDocTaskModal(indId, task) {
+    const d = teamData();
+    document.getElementById('docTaskIndId').value = indId;
+    document.getElementById('docTaskId').value    = task ? task.id : '';
+    document.getElementById('docTaskTitle').value = task ? task.title : '';
+    document.getElementById('docTaskDesc').value  = task ? task.description : '';
+    document.getElementById('docTaskModalTitle').textContent = task ? 'แก้ไขหัวข้อเอกสาร' : 'เพิ่มหัวข้อเอกสาร';
+    const chosen = task && task.assignees ? task.assignees : [];
+    document.getElementById('docTaskAsgnList').innerHTML = d.assistants.length
+        ? d.assistants.map(a => '<label class="pick-check"><input type="checkbox" value="' + a.id + '"' + (chosen.indexOf(a.id) !== -1 ? ' checked' : '') + '>'
+            + avatarMini(a.pic, a.name) + '<span>' + escHtml(a.name) + '</span></label>').join('')
+        : '<div class="pick-empty">ยังไม่มีผู้ช่วยที่อนุมัติแล้ว</div>';
+    document.getElementById('docTaskModal').classList.remove('hidden');
+}
+function docTaskSubmit(e) {
+    e.preventDefault();
+    const id    = document.getElementById('docTaskId').value;
+    const indId = document.getElementById('docTaskIndId').value;
+    const title = document.getElementById('docTaskTitle').value.trim();
+    const desc  = document.getElementById('docTaskDesc').value.trim();
+    if (desc.length < 10) { showToast('คำอธิบายต้องมีอย่างน้อย 10 ตัวอักษร', 'error'); return; }
+    const assignees = [...document.querySelectorAll('#docTaskAsgnList input:checked')].map(c => parseInt(c.value, 10));
+    const payload = { action: id ? 'edit_doc_task' : 'add_doc_task', indicator_id: indId, title, description: desc, assignees: JSON.stringify(assignees) };
+    if (id) payload.id = id;
+    apiPost(payload).then(r => {
+        if (!r.ok) { showToast(r.error, 'error'); return; }
+        document.getElementById('docTaskModal').classList.add('hidden');
+        showToast('บันทึกหัวข้อเอกสารแล้ว');
+        reloadPanel();
+    });
+}
+async function deleteDocTask(id, title) {
+    if (!await uiConfirm('ลบหัวข้อเอกสาร "' + title + '"? (ไฟล์ที่แนบไว้จะย้ายไปหลักฐานทั่วไป)', { title: 'ลบหัวข้อเอกสาร', confirmLabel: 'ลบ', danger: true })) return;
+    apiPost({ action: 'delete_doc_task', id }).then(r => {
+        r.ok ? (showToast('ลบหัวข้อเอกสารแล้ว'), reloadPanel()) : showToast(r.error, 'error');
+    });
+}
+
+// Evidence acceptance
+function acceptEvidence(id) {
+    apiPost({ action: 'accept_evidence', evidence_id: id }).then(r => {
+        r.ok ? (showToast('ยอมรับหลักฐานให้เผยแพร่ได้'), reloadPanel()) : showToast(r.error, 'error');
+    });
+}
+async function unacceptEvidence(id) {
+    if (!await uiConfirm('ยกเลิกการยอมรับหลักฐานนี้? จะถูกถอนจากการเผยแพร่', { title: 'ยกเลิกการยอมรับ', confirmLabel: 'ยกเลิกรับ', danger: true })) return;
+    apiPost({ action: 'unaccept_evidence', evidence_id: id }).then(r => {
+        r.ok ? (showToast('ยกเลิกการยอมรับแล้ว'), reloadPanel()) : showToast(r.error, 'error');
+    });
+}
+
+document.getElementById('docTaskForm')?.addEventListener('submit', docTaskSubmit);
+
 // ── Evidence Modal ────────────────────────────────────────
-function openEvModal(indId) {
+function openEvModal(indId, taskId) {
     const modal = document.getElementById('evModal');
     if (!modal) return;
     document.getElementById('evForm')?.reset();
     document.getElementById('evAction').value = 'add_evidence';
     document.getElementById('evEvId').value   = '';
     document.getElementById('evIndId').value  = indId;
-    document.getElementById('evModalTitle').textContent = 'เพิ่มหลักฐาน';
+    document.getElementById('evTaskId').value = taskId || '';
+    document.getElementById('evModalTitle').textContent = taskId ? 'แนบไฟล์ในหัวข้อเอกสาร' : 'เพิ่มหลักฐาน';
     document.getElementById('evSubmitBtn').textContent  = 'บันทึกหลักฐาน';
     document.getElementById('evCurrentFile').classList.add('hidden');
     document.getElementById('evFileInput')?.setAttribute('multiple', 'multiple');
@@ -328,6 +430,7 @@ function openEvEdit(data) {
     document.getElementById('evAction').value = 'edit_evidence';
     document.getElementById('evEvId').value   = data.id;
     document.getElementById('evIndId').value  = data.ind_id || '';
+    document.getElementById('evTaskId').value = '';
     document.getElementById('evName').value   = data.title || '';
     document.getElementById('evNote').value   = data.note || '';
     document.getElementById('evModalTitle').textContent = 'แก้ไขหลักฐาน';

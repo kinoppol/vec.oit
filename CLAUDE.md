@@ -90,6 +90,8 @@ Key column names to remember (these have caused past mismatches):
 - `users.avatar` — filename under `uploads/avatars/` (downloaded from RMS `people_pic`); NULL → UI falls back to initials via `user_avatar_html()`
 - `users.from_rms` TINYINT — 1 if imported from an external RMS. `reset_password` returns `{rms:true}` (no local reset) for these, directing the admin to change the password at the RMS instead
 
+**Team workflow tables** (migration 021): `indicator_assistants` (per school+indicator helpers; `status` `proposed`→schooladmin approves→`approved`), `document_tasks` (หัวข้อเอกสาร; description ≥10 chars), `document_task_assignees` (many assignees per task). `evidences.task_id` links a file to a document task (NULL = indicator-level); `evidences.accepted`/`accepted_by`/`accepted_at` gate publishing — an assistant's file uploads as `accepted=0`, the responsible/schooladmin's own file auto-accepts, and **public.php shows only `accepted=1`**. Access to an indicator = `user_can_access_indicator()` (responsible via `user_owns_indicator()`, approved assistant via `is_indicator_assistant()`, or task assignee); `indicator_tree()`/`dashboard_stats()` include all three when filtered by `$assigneeUserId`.
+
 ## Roles and access
 
 | Role            | Views accessible                         |

@@ -119,10 +119,15 @@ function indicator_tree(int $schoolId, string $yearCode, ?int $assigneeUserId = 
     $assignSql = '';
     $params = [':sid' => $schoolId, ':yr' => $yearCode];
     if ($assigneeUserId !== null) {
+        // Responsible (direct or via position), approved assistant, or document-task assignee
         $assignSql = ' AND (sis.assigned_user_id = :au
-            OR sis.assigned_position_id IN (SELECT position_id FROM user_positions WHERE user_id = :ap)) ';
+            OR sis.assigned_position_id IN (SELECT position_id FROM user_positions WHERE user_id = :ap)
+            OR ind.id IN (SELECT indicator_id FROM indicator_assistants WHERE user_id = :aa AND status = "approved")
+            OR ind.id IN (SELECT dt.indicator_id FROM document_tasks dt JOIN document_task_assignees dta ON dta.task_id = dt.id WHERE dta.user_id = :at)) ';
         $params[':au'] = $assigneeUserId;
         $params[':ap'] = $assigneeUserId;
+        $params[':aa'] = $assigneeUserId;
+        $params[':at'] = $assigneeUserId;
     }
     $stmt = db()->prepare('
         SELECT sec.id AS sec_id, sec.code AS sec_code, sec.title AS sec_title, sec.sort_order AS ss,
@@ -200,10 +205,14 @@ function dashboard_stats(int $schoolId, string $yearCode, ?int $assigneeUserId =
     $mkFilter = function (string $alias) use ($assigneeUserId): string {
         if ($assigneeUserId === null) return '';
         return " AND ({$alias}.assigned_user_id = :au
-            OR {$alias}.assigned_position_id IN (SELECT position_id FROM user_positions WHERE user_id = :ap)) ";
+            OR {$alias}.assigned_position_id IN (SELECT position_id FROM user_positions WHERE user_id = :ap)
+            OR ind.id IN (SELECT indicator_id FROM indicator_assistants WHERE user_id = :aa AND status = \"approved\")
+            OR ind.id IN (SELECT dt.indicator_id FROM document_tasks dt JOIN document_task_assignees dta ON dta.task_id = dt.id WHERE dta.user_id = :at)) ";
     };
 
-    $assignParams = $assigneeUserId !== null ? [':au' => $assigneeUserId, ':ap' => $assigneeUserId] : [];
+    $assignParams = $assigneeUserId !== null
+        ? [':au' => $assigneeUserId, ':ap' => $assigneeUserId, ':aa' => $assigneeUserId, ':at' => $assigneeUserId]
+        : [];
 
     $stmt = db()->prepare('
         SELECT
@@ -263,6 +272,34 @@ function user_owns_indicator(int $userId, int $schoolId, int $indId): bool
         LIMIT 1
     ');
     $s->execute([$schoolId, $indId, $userId, $userId]);
+    return (bool) $s->fetchColumn();
+}
+
+/** True if the user is an approved assistant on this indicator. */
+function is_indicator_assistant(int $userId, int $schoolId, int $indId): bool
+{
+    $s = db()->prepare('
+        SELECT 1 FROM indicator_assistants
+        WHERE school_id = ? AND indicator_id = ? AND user_id = ? AND status = "approved" LIMIT 1
+    ');
+    $s->execute([$schoolId, $indId, $userId]);
+    return (bool) $s->fetchColumn();
+}
+
+/**
+ * True if the user may open/contribute to an indicator: the responsible person,
+ * an approved assistant, or someone assigned to one of its document tasks.
+ */
+function user_can_access_indicator(int $userId, int $schoolId, int $indId): bool
+{
+    if (user_owns_indicator($userId, $schoolId, $indId)) return true;
+    if (is_indicator_assistant($userId, $schoolId, $indId)) return true;
+    $s = db()->prepare('
+        SELECT 1 FROM document_tasks dt
+        JOIN document_task_assignees dta ON dta.task_id = dt.id
+        WHERE dt.school_id = ? AND dt.indicator_id = ? AND dta.user_id = ? LIMIT 1
+    ');
+    $s->execute([$schoolId, $indId, $userId]);
     return (bool) $s->fetchColumn();
 }
 

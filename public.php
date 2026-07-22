@@ -42,7 +42,8 @@ foreach ($tree as $sec) {
     foreach ($sec['subs'] as $sub) {
         foreach ($sub['inds'] as $ind) {
             // Load evidences
-            $evStmt = db()->prepare('SELECT * FROM evidences WHERE indicator_id = ? AND school_id = ? ORDER BY sort_order ASC, id ASC');
+            // Only evidence the responsible has accepted is published
+            $evStmt = db()->prepare('SELECT * FROM evidences WHERE indicator_id = ? AND school_id = ? AND accepted = 1 ORDER BY sort_order ASC, id ASC');
             $evStmt->execute([$ind['id'], $school['id']]);
             $ind['evidences'] = $evStmt->fetchAll();
             $ind['sec_code']  = $sec['code'];

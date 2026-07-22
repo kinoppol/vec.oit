@@ -89,6 +89,7 @@ $selectedId = isset($_GET['indicator']) ? (int)$_GET['indicator'] : 0;
       <?= csrf_field() ?>
       <input type="hidden" name="action" id="evAction" value="add_evidence">
       <input type="hidden" name="indicator_id" id="evIndId">
+      <input type="hidden" name="task_id" id="evTaskId" value="">
       <input type="hidden" name="evidence_id" id="evEvId">
       <input type="hidden" name="school_id" value="<?= $schoolId ?>">
       <input type="hidden" name="year_code" value="<?= e($yearCode) ?>">
@@ -121,6 +122,53 @@ $selectedId = isset($_GET['indicator']) ? (int)$_GET['indicator'] : 0;
       <div class="modal-footer">
         <button type="button" class="btn btn-ghost" onclick="closeEvModal()">ยกเลิก</button>
         <button type="submit" class="btn btn-primary" id="evSubmitBtn">บันทึกหลักฐาน</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ─── ASSISTANT PICKER MODAL ─── -->
+<div class="modal-backdrop hidden" id="asstModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title" id="asstModalTitle">เพิ่มผู้ช่วยผู้รับผิดชอบ</h2>
+      <button class="modal-close" onclick="document.getElementById('asstModal').classList.add('hidden')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="asstIndId">
+      <div class="form-group">
+        <input type="search" id="asstSearch" class="form-input" placeholder="ค้นหาชื่อผู้ใช้…" autocomplete="off">
+      </div>
+      <div id="asstPickList" class="pick-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── DOCUMENT TASK MODAL ─── -->
+<div class="modal-backdrop hidden" id="docTaskModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title" id="docTaskModalTitle">เพิ่มหัวข้อเอกสาร</h2>
+      <button class="modal-close" onclick="document.getElementById('docTaskModal').classList.add('hidden')">✕</button>
+    </div>
+    <form id="docTaskForm" class="modal-body">
+      <input type="hidden" id="docTaskId">
+      <input type="hidden" id="docTaskIndId">
+      <div class="form-group">
+        <label class="form-label">ชื่อหัวข้อเอกสาร <span class="req">*</span></label>
+        <input type="text" id="docTaskTitle" class="form-input" required maxlength="300" placeholder="เช่น สำเนาคำสั่งแต่งตั้ง">
+      </div>
+      <div class="form-group">
+        <label class="form-label">คำอธิบาย (อย่างน้อย 10 ตัวอักษร) <span class="req">*</span></label>
+        <textarea id="docTaskDesc" class="form-input form-textarea" rows="3" required minlength="10" maxlength="1000" placeholder="อธิบายว่าต้องหาเอกสารอะไรมาแนบ"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">มอบหมายให้ผู้ช่วย (เลือกได้หลายคน)</label>
+        <div id="docTaskAsgnList" class="pick-check-list"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="document.getElementById('docTaskModal').classList.add('hidden')">ยกเลิก</button>
+        <button type="submit" class="btn btn-primary">บันทึก</button>
       </div>
     </form>
   </div>

@@ -39,20 +39,62 @@ if ($action === 'indicator_detail') {
         json_err('คุณไม่ได้รับมอบหมายตัวชี้วัดนี้', 403);
     }
 
-    $evStmt = db()->prepare('SELECT * FROM evidences WHERE indicator_id = ? AND school_id = ? ORDER BY sort_order ASC, id ASC');
+    // Evidence with attacher name/avatar (attacher shown per file; accepted gate on publish)
+    $evStmt = db()->prepare('
+        SELECT e.*, cu.full_name AS creator_name, cu.avatar AS creator_avatar
+        FROM evidences e LEFT JOIN users cu ON cu.id = e.created_by
+        WHERE e.indicator_id = ? AND e.school_id = ? ORDER BY e.sort_order ASC, e.id ASC
+    ');
     $evStmt->execute([$id, $schoolId]);
     $evidences = $evStmt->fetchAll();
 
-    // Assignment: only a schooladmin may (re)assign; load same-school users for the picker
-    $panelRole = $authUser['role'];
-    $canAssign = ($panelRole === 'schooladmin');
+    // Viewer capabilities on this indicator
+    $panelRole     = $authUser['role'];
+    $viewerId      = (int)$authUser['id'];
+    $isSchoolAdmin = ($panelRole === 'schooladmin');
+    $isResponsible = user_owns_indicator($viewerId, $schoolId, $id);
+    $isAssistant   = is_indicator_assistant($viewerId, $schoolId, $id);
+    $canManage     = $isResponsible || $isSchoolAdmin; // manage assistants/tasks, accept files
+    $canAssign     = $isSchoolAdmin;                    // reassign the responsible party
+
+    // Assistants on this indicator
+    $aStmt = db()->prepare('
+        SELECT ia.id, ia.user_id, ia.status, ia.proposed_by,
+               u.full_name, u.nickname, u.avatar
+        FROM indicator_assistants ia JOIN users u ON u.id = ia.user_id
+        WHERE ia.school_id = ? AND ia.indicator_id = ?
+        ORDER BY (ia.status = "approved") DESC, u.full_name
+    ');
+    $aStmt->execute([$schoolId, $id]);
+    $assistants = $aStmt->fetchAll();
+    $approvedAssistants = array_values(array_filter($assistants, fn($a) => $a['status'] === 'approved'));
+
+    // Document tasks + their assignees
+    $tStmt = db()->prepare('SELECT * FROM document_tasks WHERE school_id = ? AND indicator_id = ? ORDER BY id');
+    $tStmt->execute([$schoolId, $id]);
+    $docTasks = $tStmt->fetchAll();
+    $taskAssignees = [];
+    if ($docTasks) {
+        $tids = array_map(fn($t) => (int)$t['id'], $docTasks);
+        $ph   = implode(',', array_fill(0, count($tids), '?'));
+        $taStmt = db()->prepare("
+            SELECT dta.task_id, u.id, u.full_name, u.avatar
+            FROM document_task_assignees dta JOIN users u ON u.id = dta.user_id
+            WHERE dta.task_id IN ($ph) ORDER BY u.full_name
+        ");
+        $taStmt->execute($tids);
+        foreach ($taStmt->fetchAll() as $r) { $taskAssignees[(int)$r['task_id']][] = $r; }
+    }
+
+    // Same-school users/positions for the pickers
     $schoolUsers = [];
     $schoolPositions = [];
-    if ($canAssign) {
+    if ($canManage) {
         $uStmt = db()->prepare('SELECT id, full_name, nickname, position, role, avatar FROM users WHERE school_id = ? AND status = "active" ORDER BY role DESC, full_name');
         $uStmt->execute([$schoolId]);
         $schoolUsers = $uStmt->fetchAll();
-
+    }
+    if ($canAssign) {
         $pStmt = db()->prepare('
             SELECT p.id, p.name, COUNT(up.user_id) AS n
             FROM positions p LEFT JOIN user_positions up ON up.position_id = p.id
@@ -141,7 +183,15 @@ match ($action) {
     'add_evidence'     => addEvidence(),
     'edit_evidence'    => editEvidence(),
     'delete_evidence'  => deleteEvidence(),
+    'accept_evidence'  => acceptEvidence(),
+    'unaccept_evidence'=> unacceptEvidence(),
     'reorder_evidence' => reorderEvidence(),
+    'add_assistant'    => addAssistant(),
+    'approve_assistant'=> approveAssistant(),
+    'remove_assistant' => removeAssistant(),
+    'add_doc_task'     => addDocTask(),
+    'edit_doc_task'    => editDocTask(),
+    'delete_doc_task'  => deleteDocTask(),
     'upload_emblem'    => uploadEmblem(),
     'add_user'         => addUser(),
     'update_user_position' => updateUserPosition(),
@@ -272,16 +322,35 @@ function addEvidence(): never {
     if (!in_array($role, ['user','schooladmin'])) json_err('Forbidden', 403);
 
     $indId    = (int)($_POST['indicator_id'] ?? 0);
+    $taskId   = (int)($_POST['task_id'] ?? 0) ?: null;
     $name     = trim($_POST['name'] ?? '');
     $url      = trim($_POST['url'] ?? '');
     $note     = trim($_POST['note'] ?? '');
     $linkType = $_POST['link_type'] ?? 'url';
     if (!$indId) json_err('ข้อมูลไม่ครบ');
 
+    // Must be the responsible, an approved assistant, or a task assignee
+    if ($role !== 'schooladmin' && !user_can_access_indicator($userId, $schoolId, $indId)) {
+        json_err('คุณไม่มีสิทธิ์แนบหลักฐานในตัวชี้วัดนี้', 403);
+    }
+
+    // Validate the task belongs to this indicator/school when given
+    if ($taskId !== null) {
+        $tchk = db()->prepare('SELECT id FROM document_tasks WHERE id = ? AND indicator_id = ? AND school_id = ?');
+        $tchk->execute([$taskId, $indId, $schoolId]);
+        if (!$tchk->fetch()) json_err('ไม่พบหัวข้อเอกสาร', 404);
+    }
+
+    // The responsible's / schooladmin's own files publish immediately; an
+    // assistant's file waits for the responsible to accept it.
+    $autoAccept = ($role === 'schooladmin' || user_owns_indicator($userId, $schoolId, $indId)) ? 1 : 0;
+    $acceptedBy = $autoAccept ? $userId : null;
+    $acceptedAt = $autoAccept ? date('Y-m-d H:i:s') : null;
+
     $sort = ev_next_sort($schoolId, $indId);
     $ins  = db()->prepare('
-        INSERT INTO evidences (school_id, indicator_id, created_by, type, title, url, file_path, note, sort_order)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO evidences (school_id, indicator_id, task_id, created_by, accepted, accepted_by, accepted_at, type, title, url, file_path, note, sort_order)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ');
     $created = 0;
 
@@ -304,13 +373,13 @@ function addEvidence(): never {
             $base  = pathinfo($fn, PATHINFO_FILENAME);
             $title = $name !== '' ? ($multi ? $name . ' — ' . $base : $name) : $base;
             $type  = in_array($ext, EV_IMAGE_EXT) ? 'image' : 'file';
-            $ins->execute([$schoolId, $indId, $userId, $type, $title, null, $newName, $note ?: null, $sort++]);
+            $ins->execute([$schoolId, $indId, $taskId, $userId, $autoAccept, $acceptedBy, $acceptedAt, $type, $title, null, $newName, $note ?: null, $sort++]);
             $created++;
         }
         if ($created === 0) json_err('ไม่พบไฟล์ที่อัปโหลด');
     } else {
         if ($name === '') json_err('กรุณากรอกชื่อหลักฐาน');
-        $ins->execute([$schoolId, $indId, $userId, 'link', $name, $url ?: null, null, $note ?: null, $sort]);
+        $ins->execute([$schoolId, $indId, $taskId, $userId, $autoAccept, $acceptedBy, $acceptedAt, 'link', $name, $url ?: null, null, $note ?: null, $sort]);
         $created = 1;
     }
 
@@ -355,7 +424,8 @@ function editEvidence(): never {
     $stmt->execute([$evId, $schoolId]);
     $ev = $stmt->fetch();
     if (!$ev) json_err('Not found', 404);
-    if ((int)$ev['created_by'] !== $userId && $role !== 'schooladmin') json_err('Forbidden', 403);
+    if ((int)$ev['created_by'] !== $userId && $role !== 'schooladmin'
+        && !user_owns_indicator($userId, $schoolId, (int)$ev['indicator_id'])) json_err('Forbidden', 403);
 
     $filePath = $ev['file_path'];
     $type     = 'link';
@@ -407,12 +477,170 @@ function deleteEvidence(): never {
     $stmt->execute([$evId, $schoolId]);
     $ev = $stmt->fetch();
     if (!$ev) json_err('Not found', 404);
-    if ((int)$ev['created_by'] !== $userId && $role !== 'schooladmin') json_err('Forbidden', 403);
+    if ((int)$ev['created_by'] !== $userId && $role !== 'schooladmin'
+        && !user_owns_indicator($userId, $schoolId, (int)$ev['indicator_id'])) json_err('Forbidden', 403);
 
     if ($ev['file_path'] && file_exists(UPLOAD_DIR . '/' . $ev['file_path'])) {
         unlink(UPLOAD_DIR . '/' . $ev['file_path']);
     }
     db()->prepare('DELETE FROM evidences WHERE id = ?')->execute([$evId]);
+    json_ok();
+}
+
+/** Load an evidence in this school + confirm the caller may accept it (responsible or schooladmin). */
+function ev_for_accept(int $evId): array {
+    global $schoolId, $userId, $role;
+    if (!$evId) json_err('Missing id');
+    $stmt = db()->prepare('SELECT id, indicator_id FROM evidences WHERE id = ? AND school_id = ?');
+    $stmt->execute([$evId, $schoolId]);
+    $ev = $stmt->fetch();
+    if (!$ev) json_err('Not found', 404);
+    if ($role !== 'schooladmin' && !user_owns_indicator($userId, $schoolId, (int)$ev['indicator_id'])) {
+        json_err('เฉพาะผู้รับผิดชอบหรือผู้ดูแลเท่านั้นที่ยอมรับหลักฐานได้', 403);
+    }
+    return $ev;
+}
+
+function acceptEvidence(): never {
+    global $userId;
+    $ev = ev_for_accept((int)($_POST['evidence_id'] ?? 0));
+    db()->prepare('UPDATE evidences SET accepted = 1, accepted_by = ?, accepted_at = NOW() WHERE id = ?')
+        ->execute([$userId, $ev['id']]);
+    json_ok();
+}
+
+function unacceptEvidence(): never {
+    $ev = ev_for_accept((int)($_POST['evidence_id'] ?? 0));
+    db()->prepare('UPDATE evidences SET accepted = 0, accepted_by = NULL, accepted_at = NULL WHERE id = ?')
+        ->execute([$ev['id']]);
+    json_ok();
+}
+
+// ── Assistants ────────────────────────────────────────────────
+function addAssistant(): never {
+    global $schoolId, $userId, $role;
+    $indId  = (int)($_POST['indicator_id'] ?? 0);
+    $target = (int)($_POST['user_id'] ?? 0);
+    if (!$indId || !$target) json_err('ข้อมูลไม่ครบ');
+
+    // schooladmin adds an approved assistant directly; the responsible proposes one
+    $isAdmin = ($role === 'schooladmin');
+    $isResp  = user_owns_indicator($userId, $schoolId, $indId);
+    if (!$isAdmin && !$isResp) json_err('Forbidden', 403);
+
+    // Target must be an active user of this school
+    $chk = db()->prepare('SELECT id FROM users WHERE id = ? AND school_id = ? AND status = "active"');
+    $chk->execute([$target, $schoolId]);
+    if (!$chk->fetch()) json_err('ไม่พบผู้ใช้ในสถานศึกษานี้', 404);
+
+    $status = $isAdmin ? 'approved' : 'proposed';
+    db()->prepare('
+        INSERT INTO indicator_assistants (school_id, indicator_id, user_id, status, proposed_by)
+        VALUES (?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE status = IF(VALUES(status) = "approved", "approved", status)
+    ')->execute([$schoolId, $indId, $target, $status, $userId]);
+    json_ok(['status' => $status]);
+}
+
+function approveAssistant(): never {
+    global $schoolId, $role;
+    if ($role !== 'schooladmin') json_err('Forbidden', 403);
+    $id = (int)($_POST['id'] ?? 0);
+    if (!$id) json_err('Missing id');
+    $upd = db()->prepare('UPDATE indicator_assistants SET status = "approved" WHERE id = ? AND school_id = ?');
+    $upd->execute([$id, $schoolId]);
+    json_ok();
+}
+
+function removeAssistant(): never {
+    global $schoolId, $userId, $role;
+    $id = (int)($_POST['id'] ?? 0);
+    if (!$id) json_err('Missing id');
+    $stmt = db()->prepare('SELECT id, indicator_id, proposed_by FROM indicator_assistants WHERE id = ? AND school_id = ?');
+    $stmt->execute([$id, $schoolId]);
+    $row = $stmt->fetch();
+    if (!$row) json_err('Not found', 404);
+    // schooladmin, the responsible, or the person who proposed may remove
+    $allowed = ($role === 'schooladmin')
+        || user_owns_indicator($userId, $schoolId, (int)$row['indicator_id'])
+        || (int)$row['proposed_by'] === $userId;
+    if (!$allowed) json_err('Forbidden', 403);
+    db()->prepare('DELETE FROM indicator_assistants WHERE id = ?')->execute([$id]);
+    json_ok();
+}
+
+// ── Document tasks (หัวข้อเอกสาร) ──────────────────────────────
+/** Guard + parse for add/edit doc task. Returns [indId, title, desc, assignees[]]. */
+function doc_task_input(int $indId): array {
+    global $schoolId, $userId, $role;
+    if ($role !== 'schooladmin' && !user_owns_indicator($userId, $schoolId, $indId)) json_err('Forbidden', 403);
+    $title = trim($_POST['title'] ?? '');
+    $desc  = trim($_POST['description'] ?? '');
+    if ($title === '') json_err('กรุณากรอกชื่อหัวข้อเอกสาร');
+    if (mb_strlen($desc) < 10) json_err('คำอธิบายต้องมีอย่างน้อย 10 ตัวอักษร');
+
+    $assignees = json_decode($_POST['assignees'] ?? '[]', true);
+    $assignees = is_array($assignees) ? array_values(array_unique(array_map('intval', $assignees))) : [];
+    // Assignees must be approved assistants of this indicator
+    if ($assignees) {
+        $ph  = implode(',', array_fill(0, count($assignees), '?'));
+        $chk = db()->prepare("SELECT user_id FROM indicator_assistants
+            WHERE school_id = ? AND indicator_id = ? AND status = 'approved' AND user_id IN ($ph)");
+        $chk->execute(array_merge([$schoolId, $indId], $assignees));
+        $valid = array_map('intval', array_column($chk->fetchAll(), 'user_id'));
+        $assignees = array_values(array_intersect($assignees, $valid));
+    }
+    return [$title, $desc, $assignees];
+}
+
+function addDocTask(): never {
+    global $schoolId, $userId;
+    $indId = (int)($_POST['indicator_id'] ?? 0);
+    if (!$indId) json_err('ข้อมูลไม่ครบ');
+    [$title, $desc, $assignees] = doc_task_input($indId);
+
+    db()->prepare('INSERT INTO document_tasks (school_id, indicator_id, title, description, created_by) VALUES (?,?,?,?,?)')
+        ->execute([$schoolId, $indId, $title, $desc, $userId]);
+    $taskId = (int)db()->lastInsertId();
+    doc_task_set_assignees($taskId, $assignees);
+    json_ok(['id' => $taskId]);
+}
+
+function editDocTask(): never {
+    global $schoolId;
+    $id = (int)($_POST['id'] ?? 0);
+    if (!$id) json_err('Missing id');
+    $stmt = db()->prepare('SELECT indicator_id FROM document_tasks WHERE id = ? AND school_id = ?');
+    $stmt->execute([$id, $schoolId]);
+    $row = $stmt->fetch();
+    if (!$row) json_err('Not found', 404);
+    [$title, $desc, $assignees] = doc_task_input((int)$row['indicator_id']);
+
+    db()->prepare('UPDATE document_tasks SET title = ?, description = ? WHERE id = ?')
+        ->execute([$title, $desc, $id]);
+    doc_task_set_assignees($id, $assignees);
+    json_ok();
+}
+
+function doc_task_set_assignees(int $taskId, array $userIds): void {
+    db()->prepare('DELETE FROM document_task_assignees WHERE task_id = ?')->execute([$taskId]);
+    if (!$userIds) return;
+    $ins = db()->prepare('INSERT INTO document_task_assignees (task_id, user_id) VALUES (?, ?)');
+    foreach ($userIds as $uid) $ins->execute([$taskId, $uid]);
+}
+
+function deleteDocTask(): never {
+    global $schoolId, $userId, $role;
+    $id = (int)($_POST['id'] ?? 0);
+    if (!$id) json_err('Missing id');
+    $stmt = db()->prepare('SELECT indicator_id FROM document_tasks WHERE id = ? AND school_id = ?');
+    $stmt->execute([$id, $schoolId]);
+    $row = $stmt->fetch();
+    if (!$row) json_err('Not found', 404);
+    if ($role !== 'schooladmin' && !user_owns_indicator($userId, $schoolId, (int)$row['indicator_id'])) json_err('Forbidden', 403);
+    // Detach any evidence linked to this task (keep the files at indicator level)
+    db()->prepare('UPDATE evidences SET task_id = NULL WHERE task_id = ?')->execute([$id]);
+    db()->prepare('DELETE FROM document_tasks WHERE id = ?')->execute([$id]);
     json_ok();
 }
 
