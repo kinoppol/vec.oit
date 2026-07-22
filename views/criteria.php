@@ -37,7 +37,19 @@ if ($fyCode) {
         $tree[$si]['subs'][$ui]['inds'][] = $r;
     }
     foreach ($tree as &$s) $s['subs'] = array_values($s['subs']);
+    unset($s);
     $tree = array_values($tree);
+}
+
+// Reference files attached to each indicator (criterion)
+$critFiles = [];
+$indIds = [];
+foreach ($tree as $sec) foreach ($sec['subs'] as $sub) foreach ($sub['inds'] as $ind) $indIds[] = (int)$ind['ind_id'];
+if ($indIds) {
+    $ph = implode(',', array_fill(0, count($indIds), '?'));
+    $fStmt = db()->prepare("SELECT * FROM indicator_files WHERE indicator_id IN ($ph) ORDER BY id");
+    $fStmt->execute($indIds);
+    foreach ($fStmt->fetchAll() as $r) $critFiles[(int)$r['indicator_id']][] = $r;
 }
 ?>
 <div class="criteria-layout">
@@ -94,19 +106,45 @@ if ($fyCode) {
             <span class="crit-code crit-sub-code"><?= e($sub['code']) ?></span>
             <?= e($sub['title']) ?>
           </div>
-          <?php foreach ($sub['inds'] as $ind): ?>
-          <div class="crit-ind-row">
-            <span class="crit-ind-code"><?= e($ind['ind_code']) ?></span>
-            <span class="crit-ind-title"><?= e($ind['ind_title']) ?></span>
-            <button class="icon-btn" title="แก้ไข" onclick="editInd(<?= e(json_encode([
-                'id' => $ind['ind_id'],
-                'code' => $ind['ind_code'],
-                'title' => $ind['ind_title'],
-                'criteria' => $ind['criteria'],
-                'sub_id' => $ind['sub_id'],
-            ])) ?>)">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            </button>
+          <?php foreach ($sub['inds'] as $ind): $iid = (int)$ind['ind_id']; $files = $critFiles[$iid] ?? []; ?>
+          <div class="crit-ind">
+            <div class="crit-ind-row">
+              <span class="crit-ind-code"><?= e($ind['ind_code']) ?></span>
+              <span class="crit-ind-title"><?= e($ind['ind_title']) ?></span>
+              <label class="icon-btn crit-attach" title="แนบเอกสารประกอบเกณฑ์">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                <input type="file" multiple accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx" style="display:none" onchange="uploadCritFiles(<?= $iid ?>, this)">
+              </label>
+              <button class="icon-btn" title="แก้ไข" onclick="editInd(<?= e(json_encode([
+                  'id' => $ind['ind_id'],
+                  'code' => $ind['ind_code'],
+                  'title' => $ind['ind_title'],
+                  'criteria' => $ind['criteria'],
+                  'sub_id' => $ind['sub_id'],
+              ])) ?>)">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </button>
+            </div>
+            <?php if ($files): ?>
+            <div class="crit-files">
+              <?php foreach ($files as $f):
+                $url = APP_URL . '/uploads/' . rawurlencode($f['file_path']);
+                $isImg = $f['type'] === 'image';
+              ?>
+              <span class="crit-file">
+                <a href="<?= $url ?>" target="_blank" class="crit-file-link">
+                  <?php if ($isImg): ?>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                  <?php else: ?>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h11l5 5v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M14 4v5h5"/></svg>
+                  <?php endif; ?>
+                  <?= e($f['title']) ?>
+                </a>
+                <button class="crit-file-x" title="ลบไฟล์" onclick="deleteCritFile(<?= (int)$f['id'] ?>)">✕</button>
+              </span>
+              <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
           </div>
           <?php endforeach; ?>
         </div>
@@ -217,6 +255,30 @@ if ($fyCode) {
 <script>
 function openAddFY() { document.getElementById('addFYModal').classList.remove('hidden'); }
 function openImport() { document.getElementById('importModal').classList.remove('hidden'); }
+
+// ── Criteria reference files ──
+function uploadCritFiles(indId, input) {
+    if (!input.files || !input.files.length) return;
+    const fd = new FormData();
+    fd.append('csrf_token', CSRF_TOKEN);
+    fd.append('action', 'add_criteria_file');
+    fd.append('indicator_id', indId);
+    for (const f of input.files) fd.append('files[]', f);
+    showToast('กำลังอัปโหลด…');
+    fetch(APP_URL + '/api.php', { method:'POST', body: fd })
+        .then(r => r.json())
+        .then(r => {
+            if (r.ok) { showToast('แนบเอกสาร ' + r.data.created + ' ไฟล์แล้ว'); setTimeout(() => location.reload(), 700); }
+            else showToast(r.error, 'error');
+        })
+        .catch(() => showToast('เกิดข้อผิดพลาดในการอัปโหลด', 'error'));
+}
+async function deleteCritFile(id) {
+    if (!await uiConfirm('ลบเอกสารประกอบเกณฑ์นี้?', { title:'ลบเอกสาร', confirmLabel:'ลบ', danger:true })) return;
+    apiPost({ action:'delete_criteria_file', id }).then(r => {
+        r.ok ? location.reload() : showToast(r.error, 'error');
+    });
+}
 
 document.getElementById('importForm').addEventListener('submit', function(e) {
     e.preventDefault();

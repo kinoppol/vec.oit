@@ -134,6 +134,11 @@ if ($action === 'indicator_detail') {
         $schoolPositions = $pStmt->fetchAll();
     }
 
+    // Reference files attached to this criterion by a centraladmin (read-only for schools)
+    $cfStmt = db()->prepare('SELECT id, title, file_path, type FROM indicator_files WHERE indicator_id = ? ORDER BY id');
+    $cfStmt->execute([$id]);
+    $criteriaFiles = $cfStmt->fetchAll();
+
     ob_start();
     include __DIR__ . '/includes/detail_panel.php';
     $html = ob_get_clean();
@@ -248,6 +253,8 @@ match ($action) {
     'add_indicator'    => addIndicator(),
     'edit_indicator'   => editIndicator(),
     'import_indicators'=> importIndicators(),
+    'add_criteria_file'   => addCriteriaFile(),
+    'delete_criteria_file'=> deleteCriteriaFile(),
     'approve_school'   => approveSchool(),
     'set_school_status'=> setSchoolStatus(),
     'run_migrations'   => runMigrations(),
@@ -1428,6 +1435,56 @@ function editIndicator(): never {
 
     db()->prepare('UPDATE indicators SET code=?, title=?, criteria=?, subsection_id=? WHERE id=?')
         ->execute([$code, $title, $criteria ?: null, $subId, $id]);
+    json_ok();
+}
+
+const CRITERIA_ALLOWED_EXT = ['jpg','jpeg','png','gif','webp','pdf','doc','docx'];
+
+/** Central admin attaches reference documents to a criterion (indicator). Supports many files. */
+function addCriteriaFile(): never {
+    global $role, $userId;
+    if ($role !== 'centraladmin') json_err('Forbidden', 403);
+    $indId = (int)($_POST['indicator_id'] ?? 0);
+    if (!$indId) json_err('Missing indicator');
+
+    $chk = db()->prepare('SELECT id FROM indicators WHERE id = ?');
+    $chk->execute([$indId]);
+    if (!$chk->fetch()) json_err('ไม่พบตัวชี้วัด', 404);
+
+    if (empty($_FILES['files']['name'])) json_err('ไม่พบไฟล์ที่อัปโหลด');
+    $f     = $_FILES['files'];
+    $names = is_array($f['name'])     ? $f['name']     : [$f['name']];
+    $tmps  = is_array($f['tmp_name']) ? $f['tmp_name'] : [$f['tmp_name']];
+    $sizes = is_array($f['size'])     ? $f['size']     : [$f['size']];
+
+    $ins = db()->prepare('INSERT INTO indicator_files (indicator_id, title, file_path, type, uploaded_by) VALUES (?,?,?,?,?)');
+    $created = 0;
+    foreach ($names as $i => $fn) {
+        if ($fn === '' || empty($tmps[$i])) continue;
+        if ($sizes[$i] > MAX_UPLOAD) json_err('ไฟล์ "' . $fn . '" ใหญ่เกิน 10 MB');
+        $ext = strtolower(pathinfo($fn, PATHINFO_EXTENSION));
+        if (!in_array($ext, CRITERIA_ALLOWED_EXT)) json_err('ประเภทไฟล์ไม่อนุญาต: ' . $fn);
+        $newName = bin2hex(random_bytes(16)) . '.' . $ext;
+        if (!move_uploaded_file($tmps[$i], UPLOAD_DIR . '/' . $newName)) json_err('อัปโหลดไม่สำเร็จ');
+        $type = in_array($ext, ['jpg','jpeg','png','gif','webp']) ? 'image' : 'file';
+        $ins->execute([$indId, pathinfo($fn, PATHINFO_FILENAME), $newName, $type, $userId]);
+        $created++;
+    }
+    if ($created === 0) json_err('ไม่พบไฟล์ที่อัปโหลด');
+    json_ok(['created' => $created]);
+}
+
+function deleteCriteriaFile(): never {
+    global $role;
+    if ($role !== 'centraladmin') json_err('Forbidden', 403);
+    $id = (int)($_POST['id'] ?? 0);
+    if (!$id) json_err('Missing id');
+    $stmt = db()->prepare('SELECT file_path FROM indicator_files WHERE id = ?');
+    $stmt->execute([$id]);
+    $fp = $stmt->fetchColumn();
+    if ($fp === false) json_err('Not found', 404);
+    if ($fp && file_exists(UPLOAD_DIR . '/' . $fp)) unlink(UPLOAD_DIR . '/' . $fp);
+    db()->prepare('DELETE FROM indicator_files WHERE id = ?')->execute([$id]);
     json_ok();
 }
 

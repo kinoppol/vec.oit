@@ -104,6 +104,26 @@ $renderEv = function (array $ev, bool $draggable = true) use ($ind, $canManage, 
   </div>
   <?php endif; ?>
 
+  <?php $criteriaFiles = $criteriaFiles ?? []; if ($criteriaFiles): ?>
+  <div class="detail-criteria crit-ref">
+    <div class="detail-criteria-hdr">เอกสารประกอบการประเมิน (จากส่วนกลาง)</div>
+    <div class="crit-files">
+      <?php foreach ($criteriaFiles as $f): $url = APP_URL . '/uploads/' . rawurlencode($f['file_path']); ?>
+      <span class="crit-file">
+        <a href="<?= $url ?>" target="_blank" class="crit-file-link">
+          <?php if ($f['type'] === 'image'): ?>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+          <?php else: ?>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h11l5 5v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M14 4v5h5"/></svg>
+          <?php endif; ?>
+          <?= e($f['title']) ?>
+        </a>
+      </span>
+      <?php endforeach; ?>
+    </div>
+  </div>
+  <?php endif; ?>
+
   <!-- STATUS UPDATE -->
   <div class="detail-section">
     <div class="detail-section-hdr">อัปเดตสถานะ</div>
