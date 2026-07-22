@@ -14,11 +14,13 @@ $posStmt = db()->prepare('SELECT id, name FROM positions WHERE school_id = ? OR 
 $posStmt->execute([$schoolId]);
 $positions = $posStmt->fetchAll();
 
-// Positions per user (many-to-many)
+// Positions per user (many-to-many) — includes central positions (school_id IS NULL)
 $upStmt = db()->prepare('
-    SELECT up.user_id, p.name FROM user_positions up
+    SELECT up.user_id, p.name
+    FROM users u
+    JOIN user_positions up ON up.user_id = u.id
     JOIN positions p ON p.id = up.position_id
-    WHERE p.school_id = ? ORDER BY p.name
+    WHERE u.school_id = ? ORDER BY p.name
 ');
 $upStmt->execute([$schoolId]);
 $userPositions = [];
