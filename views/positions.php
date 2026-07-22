@@ -66,7 +66,7 @@ require_role('centraladmin');
             '<div class="pos-row pos-row-school">'
             + '<div class="pos-sch-info"><span class="pos-sch-name">' + escHtml(p.name) + '</span>'
             + '<span class="pos-sch-sub">' + escHtml(p.school_name) + ' · ' + (p.n > 0 ? (p.n + ' คน') : 'ยังไม่มีผู้ครอง') + '</span></div>'
-            + '<button type="button" class="btn btn-primary btn-sm" onclick="promotePos(' + p.id + ', ' + JSON.stringify(p.name) + ')">อนุมัติเป็นตำแหน่งกลาง</button>'
+            + '<button type="button" class="btn btn-primary btn-sm" onclick="promotePos(' + p.id + ')">อนุมัติเป็นตำแหน่งกลาง</button>'
             + '</div>').join('');
     }
 
@@ -92,7 +92,8 @@ require_role('centraladmin');
         const r = await apiPost({ action: 'delete_central_position', id });
         if (r.ok) { showToast('ลบตำแหน่งกลางแล้ว'); load(); } else showToast(r.error, 'error');
     };
-    window.promotePos = async function (id, name) {
+    window.promotePos = async function (id) {
+        const name = (schoolRows.find(r => r.id == id) || {}).name || 'ตำแหน่งนี้';
         if (!await uiConfirm('อนุมัติ “' + name + '” เป็นตำแหน่งกลาง? ทุกสถานศึกษาจะใช้ได้ และตำแหน่งชื่อเดียวกันจากทุกสถานศึกษาจะถูกรวมเข้าด้วยกัน', { title: 'อนุมัติเป็นตำแหน่งกลาง', confirmLabel: 'อนุมัติ' })) return;
         const r = await apiPost({ action: 'promote_position', id });
         if (r.ok) { showToast('อนุมัติเป็นตำแหน่งกลางแล้ว'); load(); } else showToast(r.error, 'error');
