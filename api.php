@@ -5,6 +5,12 @@ require_once __DIR__ . '/includes/functions.php';
 
 header('Content-Type: application/json; charset=UTF-8');
 
+// Allowed upload extensions (top-level const is NOT hoisted — must be defined
+// before the match() dispatch below, or functions calling it error out)
+const EV_ALLOWED_EXT       = ['pdf','doc','docx','xls','xlsx','jpg','jpeg','png','gif','webp'];
+const EV_IMAGE_EXT         = ['jpg','jpeg','png','gif','webp'];
+const CRITERIA_ALLOWED_EXT = ['jpg','jpeg','png','gif','webp','pdf','doc','docx'];
+
 // Parse action from POST body or GET
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 
@@ -359,9 +365,6 @@ function updateSlug(): never {
     $_SESSION['user']['school']['slug'] = $slug; // keep session in sync
     json_ok(['slug' => $slug]);
 }
-
-const EV_ALLOWED_EXT = ['pdf','doc','docx','xls','xlsx','jpg','jpeg','png','gif','webp'];
-const EV_IMAGE_EXT   = ['jpg','jpeg','png','gif','webp'];
 
 function ev_next_sort(int $schoolId, int $indId): int {
     $s = db()->prepare('SELECT COALESCE(MAX(sort_order),0)+1 FROM evidences WHERE school_id = ? AND indicator_id = ?');
@@ -1491,8 +1494,6 @@ function deleteSubsection(): never {
     db()->prepare('DELETE FROM indicator_subsections WHERE id = ?')->execute([$id]);
     json_ok();
 }
-
-const CRITERIA_ALLOWED_EXT = ['jpg','jpeg','png','gif','webp','pdf','doc','docx'];
 
 /** Central admin attaches reference documents to a criterion (indicator). Supports many files. */
 function addCriteriaFile(): never {
