@@ -146,7 +146,9 @@ function indicator_tree(int $schoolId, string $yearCode, ?int $assigneeUserId = 
         LEFT JOIN users au ON au.id = sis.assigned_user_id
         LEFT JOIN positions ap ON ap.id = sis.assigned_position_id
         WHERE fy.year_code = :yr' . $assignSql . '
-        ORDER BY sec.sort_order, sub.sort_order, ind.sort_order
+        ORDER BY CAST(REGEXP_REPLACE(sec.code,"[^0-9]","") AS UNSIGNED), sec.sort_order,
+                 CAST(REGEXP_REPLACE(sub.code,"[^0-9]","") AS UNSIGNED), sub.sort_order,
+                 CAST(REGEXP_REPLACE(ind.code,"[^0-9]","") AS UNSIGNED), ind.sort_order
     ');
     $stmt->execute($params);
     $rows = $stmt->fetchAll();

@@ -134,7 +134,9 @@ if ($action === 'export_indicators') {
         JOIN indicator_subsections sub ON sub.section_id = sec.id
         JOIN indicators ind ON ind.subsection_id = sub.id
         WHERE sec.fiscal_year_id = ?
-        ORDER BY sec.sort_order, sub.sort_order, ind.sort_order
+        ORDER BY CAST(REGEXP_REPLACE(sec.code,"[^0-9]","") AS UNSIGNED), sec.sort_order,
+                 CAST(REGEXP_REPLACE(sub.code,"[^0-9]","") AS UNSIGNED), sub.sort_order,
+                 CAST(REGEXP_REPLACE(ind.code,"[^0-9]","") AS UNSIGNED), ind.sort_order
     ');
     $rows->execute([$fy['id']]);
 
