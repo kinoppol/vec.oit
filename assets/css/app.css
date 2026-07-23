@@ -1110,6 +1110,13 @@ select.form-input { appearance: none; text-overflow: ellipsis; background-image:
 @keyframes rmsPop   { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 @keyframes rmsSlide { 0% { left: -40%; } 100% { left: 100%; } }
 
+/* ── System settings row (migration view) ── */
+.setting-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.setting-text { flex: 1; min-width: 220px; }
+.setting-label { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+.setting-hint { font-size: 12.5px; color: var(--text-tertiary); margin-top: 3px; }
+.setting-input { width: 110px; flex: none; }
+
 /* ── Evidence upload progress (reuses the .rms-prog-track bar) ── */
 .up-prog { margin: 4px 0 2px; animation: fadeIn .2s both; }
 .up-prog-head {

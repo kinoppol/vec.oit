@@ -44,6 +44,24 @@ $nApp    = count($applied);
     <div id="migResultRows" class="mig-rows"></div>
   </div>
 
+  <!-- SYSTEM SETTINGS -->
+  <div class="card">
+    <div class="card-header"><span class="card-title">ตั้งค่าระบบ</span></div>
+    <div class="setting-row">
+      <div class="setting-text">
+        <div class="setting-label">ขนาดไฟล์สูงสุดต่อไฟล์ (MB)</div>
+        <div class="setting-hint">
+          ใช้กับการแนบหลักฐานและเอกสารอ้างอิงทุกจุด · เซิร์ฟเวอร์รองรับสูงสุด
+          <?= (int)floor(min(ini_bytes((string)ini_get('upload_max_filesize')),
+                             ini_bytes((string)ini_get('post_max_size'))) / 1048576) ?> MB
+        </div>
+      </div>
+      <input type="number" id="setUploadMb" class="form-input setting-input"
+             min="1" max="<?= MAX_UPLOAD_CEILING_MB ?>" value="<?= max_upload_mb() ?>">
+      <button id="setUploadSave" class="btn btn-primary">บันทึก</button>
+    </div>
+  </div>
+
   <!-- MIGRATION LIST -->
   <div class="card mig-list-card">
     <div class="card-header">
@@ -74,6 +92,17 @@ $nApp    = count($applied);
 </div>
 
 <script>
+document.getElementById('setUploadSave')?.addEventListener('click', async function () {
+    const input = document.getElementById('setUploadMb');
+    this.disabled = true;
+    const r = await apiPost({ action: 'save_upload_limit', max_upload_mb: input.value });
+    this.disabled = false;
+    if (!r.ok) { showToast(r.error, 'error'); return; }
+    showToast(r.data.capped
+        ? 'บันทึกแล้ว แต่เซิร์ฟเวอร์จำกัดไว้ที่ ' + r.data.php_limit_mb + ' MB'
+        : 'บันทึกขนาดไฟล์สูงสุด ' + r.data.max_upload_mb + ' MB แล้ว');
+});
+
 (function () {
     const btn  = document.getElementById('migRun');
     const box  = document.getElementById('migResult');

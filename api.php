@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/config/app.php';
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/functions.php';
@@ -277,10 +277,31 @@ match ($action) {
     'approve_school'   => approveSchool(),
     'set_school_status'=> setSchoolStatus(),
     'run_migrations'   => runMigrations(),
+    'save_upload_limit'=> saveUploadLimit(),
     default            => json_err('Unknown action', 400),
 };
 
 // ─────────────────────────────────────────────────────────────
+/** Central admin sets the per-file upload ceiling (MB). */
+function saveUploadLimit(): never {
+    global $role, $userId;
+    if ($role !== 'centraladmin') json_err('Forbidden', 403);
+
+    $mb = (int)($_POST['max_upload_mb'] ?? 0);
+    if ($mb < 1) json_err('กรุณาระบุขนาดเป็นตัวเลข MB ที่มากกว่า 0');
+    if ($mb > MAX_UPLOAD_CEILING_MB) json_err('กำหนดได้ไม่เกิน ' . MAX_UPLOAD_CEILING_MB . ' MB');
+
+    // PHP's own limits still cap this — warn instead of silently under-delivering
+    $phpMb = (int)floor(min(ini_bytes((string)ini_get('upload_max_filesize')),
+                            ini_bytes((string)ini_get('post_max_size'))) / 1048576);
+    setting_set('max_upload_mb', (string)$mb, $userId);
+    json_ok([
+        'max_upload_mb' => $mb,
+        'php_limit_mb'  => $phpMb,
+        'capped'        => $mb > $phpMb,
+    ]);
+}
+
 function runMigrations(): never {
     global $role;
     if ($role !== 'centraladmin') json_err('Forbidden', 403);
@@ -428,7 +449,7 @@ function addEvidence(): never {
         foreach ($names as $i => $fn) {
             if ($msg = upload_error_text((int)($errs[$i] ?? 0), $fn)) json_err($msg);
             if ($fn === '' || empty($tmps[$i])) continue;
-            if ($sizes[$i] > MAX_UPLOAD) json_err('ไฟล์ "' . $fn . '" ใหญ่เกิน 10 MB');
+            if ($sizes[$i] > max_upload_bytes()) json_err('ไฟล์ "' . $fn . '" ใหญ่เกิน ' . max_upload_mb() . ' MB');
             $ext = strtolower(pathinfo($fn, PATHINFO_EXTENSION));
             if (!in_array($ext, EV_ALLOWED_EXT)) json_err('ประเภทไฟล์ไม่อนุญาต: ' . $fn);
             $newName = bin2hex(random_bytes(16)) . '.' . $ext;
@@ -447,7 +468,16 @@ function addEvidence(): never {
         $created = 1;
     }
 
-    json_ok(['created' => $created]);
+    // Evidence attached ⇒ the indicator is being worked on
+    $status = null;
+    if ($created > 0) {
+        bump_status_inprogress($schoolId, $indId);
+        $st = db()->prepare('SELECT status FROM school_indicator_status WHERE school_id = ? AND indicator_id = ?');
+        $st->execute([$schoolId, $indId]);
+        $status = $st->fetchColumn() ?: null;
+    }
+
+    json_ok(['created' => $created, 'status' => $status]);
 }
 
 function reorderEvidence(): never {
@@ -504,7 +534,7 @@ function editEvidence(): never {
         if ($msg = upload_error_text((int)$upErr, $upName)) json_err($msg);
         // Replace file only if a new one is uploaded; otherwise keep the existing file
         if ($upName !== '' && $upTmp !== '') {
-            if ($upSize > MAX_UPLOAD) json_err('ไฟล์ใหญ่เกิน 10 MB');
+            if ($upSize > max_upload_bytes()) json_err('ไฟล์ใหญ่เกิน ' . max_upload_mb() . ' MB');
             $ext = strtolower(pathinfo($upName, PATHINFO_EXTENSION));
             if (!in_array($ext, EV_ALLOWED_EXT)) json_err('ประเภทไฟล์ไม่อนุญาต');
             $newName = bin2hex(random_bytes(16)) . '.' . $ext;
@@ -1529,7 +1559,7 @@ function addCriteriaFile(): never {
     foreach ($names as $i => $fn) {
         if ($msg = upload_error_text((int)($errs[$i] ?? 0), $fn)) json_err($msg);
         if ($fn === '' || empty($tmps[$i])) continue;
-        if ($sizes[$i] > MAX_UPLOAD) json_err('ไฟล์ "' . $fn . '" ใหญ่เกิน 10 MB');
+        if ($sizes[$i] > max_upload_bytes()) json_err('ไฟล์ "' . $fn . '" ใหญ่เกิน ' . max_upload_mb() . ' MB');
         $ext = strtolower(pathinfo($fn, PATHINFO_EXTENSION));
         if (!in_array($ext, CRITERIA_ALLOWED_EXT)) json_err('ประเภทไฟล์ไม่อนุญาต: ' . $fn);
         $newName = bin2hex(random_bytes(16)) . '.' . $ext;
@@ -1578,7 +1608,7 @@ function addYearFile(): never {
     foreach ($names as $i => $fn) {
         if ($msg = upload_error_text((int)($errs[$i] ?? 0), $fn)) json_err($msg);
         if ($fn === '' || empty($tmps[$i])) continue;
-        if ($sizes[$i] > MAX_UPLOAD) json_err('ไฟล์ "' . $fn . '" ใหญ่เกิน 10 MB');
+        if ($sizes[$i] > max_upload_bytes()) json_err('ไฟล์ "' . $fn . '" ใหญ่เกิน ' . max_upload_mb() . ' MB');
         $ext = strtolower(pathinfo($fn, PATHINFO_EXTENSION));
         if (!in_array($ext, CRITERIA_ALLOWED_EXT)) json_err('ประเภทไฟล์ไม่อนุญาต: ' . $fn);
         $newName = bin2hex(random_bytes(16)) . '.' . $ext;
@@ -1614,7 +1644,7 @@ function importIndicators(): never {
     // Read JSON from uploaded file or pasted text
     $raw = '';
     if (!empty($_FILES['file']['tmp_name']) && is_uploaded_file($_FILES['file']['tmp_name'])) {
-        if (($_FILES['file']['size'] ?? 0) > MAX_UPLOAD) json_err('ไฟล์ใหญ่เกินไป');
+        if (($_FILES['file']['size'] ?? 0) > max_upload_bytes()) json_err('ไฟล์ใหญ่เกินไป');
         $raw = (string)file_get_contents($_FILES['file']['tmp_name']);
     } elseif (!empty($_POST['json'])) {
         $raw = (string)$_POST['json'];

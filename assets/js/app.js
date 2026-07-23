@@ -161,24 +161,31 @@ if (window.selectedIndicatorId) {
 }
 
 // ── Update Status ─────────────────────────────────────────
+const STATUS_CHIP  = { done:'chip-done', inprogress:'chip-prog', pending:'chip-pend' };
+const STATUS_LABEL = { done:'เผยแพร่แล้ว', inprogress:'กำลังดำเนินการ', pending:'ยังไม่ดำเนินการ' };
+
+// Repaint the tree row and the detail panel's status buttons for one indicator
+function reflectStatus(indId, status) {
+    if (!STATUS_LABEL[status]) return;
+    const treeEl = document.querySelector('.tree-ind[data-id="' + indId + '"]');
+    if (treeEl) {
+        treeEl.className = treeEl.className.replace(/status-\w+/, 'status-' + status);
+        const chip = treeEl.querySelector('.chip');
+        if (chip) {
+            chip.className = 'chip ' + STATUS_CHIP[status];
+            chip.textContent = STATUS_LABEL[status];
+        }
+    }
+    document.querySelectorAll('.status-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.status === status);
+    });
+}
+
 function updateStatus(indId, status) {
     apiPost({ action: 'update_status', indicator_id: indId, status }).then(r => {
         if (r.ok) {
             showToast('บันทึกสถานะเรียบร้อย');
-            // Reflect in tree
-            const treeEl = document.querySelector('.tree-ind[data-id="' + indId + '"]');
-            if (treeEl) {
-                treeEl.className = treeEl.className.replace(/status-\w+/, 'status-' + status);
-                const chip = treeEl.querySelector('.chip');
-                if (chip) {
-                    chip.className = 'chip ' + { done:'chip-done', inprogress:'chip-prog', pending:'chip-pend' }[status];
-                    chip.textContent = { done:'เผยแพร่แล้ว', inprogress:'กำลังดำเนินการ', pending:'ยังไม่ดำเนินการ' }[status];
-                }
-                // Update status buttons in detail panel
-                document.querySelectorAll('.status-btn').forEach(btn => {
-                    btn.classList.toggle('active', btn.dataset.status === status);
-                });
-            }
+            reflectStatus(indId, status);
         } else { showToast(r.error, 'error'); }
     });
 }
@@ -570,6 +577,16 @@ if (evForm) {
         const files = document.getElementById('evFileInput')?.files;
         const isFile = document.querySelector('[name="link_type"]:checked')?.value === 'file';
         const nFiles = isFile && files ? files.length : 0;
+
+        // Catch an oversized file here rather than after uploading all of it
+        for (let i = 0; i < nFiles; i++) {
+            if (files[i].size > MAX_UPLOAD) {
+                btn.disabled = false;
+                showToast('ไฟล์ "' + files[i].name + '" ขนาด ' + fmtBytes(files[i].size)
+                        + ' ใหญ่เกิน ' + MAX_UPLOAD_MB + ' MB', 'error');
+                return;
+            }
+        }
         if (nFiles) evProgShow(nFiles);
 
         const done = json => {
@@ -580,6 +597,9 @@ if (evForm) {
                 closeEvModal();
                 showToast(isEdit ? 'บันทึกการแก้ไขเรียบร้อย'
                                  : (n > 1 ? 'เพิ่มหลักฐาน ' + n + ' รายการเรียบร้อย' : 'เพิ่มหลักฐานเรียบร้อย'));
+                // The server lifts a pending indicator to "กำลังดำเนินการ" on attach
+                const indId = document.getElementById('evIndId').value;
+                if (json.data && json.data.status) reflectStatus(indId, json.data.status);
                 // Reload detail panel
                 if (window.selectedIndicatorId) loadIndicator(window.selectedIndicatorId);
             } else {

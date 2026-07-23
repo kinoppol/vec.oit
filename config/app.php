@@ -28,7 +28,13 @@ if (session_status() === PHP_SESSION_NONE) {
 define('APP_NAME', 'ระบบเปิดเผยข้อมูลสาธารณะ (OIT)');
 define('APP_ROOT', dirname(__DIR__));
 define('UPLOAD_DIR', APP_ROOT . '/uploads');
-define('MAX_UPLOAD', 10 * 1024 * 1024); // 10 MB
+// Per-file upload ceiling in MB, used when app_settings has no override.
+// A centraladmin changes the live value in the ตั้งค่าระบบ card; read it with
+// max_upload_mb() / max_upload_bytes(), never MAX_UPLOAD_DEFAULT directly.
+// It must stay under the server's upload_max_filesize (and a whole batch under
+// post_max_size) — both are 100M in production.
+define('MAX_UPLOAD_DEFAULT_MB', 50);
+define('MAX_UPLOAD_CEILING_MB', 100);
 
 // RMS external user-import endpoint. The origin (e.g. http://rms.rvc.ac.th) is stored
 // per school in schools.rms_base_url; this path/query is fixed (hardcoded).

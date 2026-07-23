@@ -160,7 +160,9 @@ CSS variables are defined on `:root` (light) and overridden by `[data-theme="dar
 
 ## File upload
 
-Uploaded evidence files go to `uploads/` (flat, random hex filenames). School emblems go to `uploads/emblems/`. The `uploads/.htaccess` blocks PHP execution. `MAX_UPLOAD` = 10 MB (defined in `config/app.php`).
+Uploaded evidence files go to `uploads/` (flat, random hex filenames). School emblems go to `uploads/emblems/`. The `uploads/.htaccess` blocks PHP execution. The per-file limit is **centraladmin-adjustable**: `app_settings.max_upload_mb` (migration 026), edited in the ตั้งค่าระบบ card on the migration view via the `save_upload_limit` action. Always read it through `max_upload_bytes()` / `max_upload_mb()` — those clamp to PHP's own `upload_max_filesize`/`post_max_size` and fall back to `MAX_UPLOAD_DEFAULT_MB` when the table is missing. `MAX_UPLOAD` no longer exists.
+
+Attaching evidence calls `bump_status_inprogress()`, which lifts a `pending` indicator to `inprogress` and never downgrades one already `done`.
 
 ## Design reference
 

@@ -48,6 +48,69 @@ function json_err(string $msg, int $code = 400): never
 }
 
 /**
+ * Central-admin adjustable settings (app_settings). Reads are cached per
+ * request. A missing table (migration 026 not yet run) falls back to $default
+ * so the app keeps working on an older database.
+ */
+function setting_get(string $key, ?string $default = null): ?string
+{
+    static $cache = null;
+    if ($cache === null) {
+        try {
+            $cache = db()->query('SELECT skey, svalue FROM app_settings')
+                         ->fetchAll(PDO::FETCH_KEY_PAIR);
+        } catch (PDOException) {
+            $cache = [];
+        }
+    }
+    return $cache[$key] ?? $default;
+}
+
+function setting_set(string $key, ?string $value, ?int $userId = null): void
+{
+    db()->prepare('
+        INSERT INTO app_settings (skey, svalue, updated_by) VALUES (?, ?, ?)
+        ON DUPLICATE KEY UPDATE svalue = VALUES(svalue), updated_by = VALUES(updated_by)
+    ')->execute([$key, $value, $userId]);
+}
+
+/** "8M" / "512K" / "1G" as used by php.ini → bytes. */
+function ini_bytes(string $val): int
+{
+    $val = trim($val);
+    if ($val === '') return 0;
+    $n = (int)$val;
+    return match (strtolower(substr($val, -1))) {
+        'g'     => $n * 1024 * 1024 * 1024,
+        'm'     => $n * 1024 * 1024,
+        'k'     => $n * 1024,
+        default => $n,
+    };
+}
+
+/**
+ * The effective per-file limit: whatever the centraladmin set, but never more
+ * than PHP itself will accept — a higher app limit would just turn into a
+ * confusing failure deeper in the request.
+ */
+function max_upload_bytes(): int
+{
+    $mb = (int)setting_get('max_upload_mb', (string)MAX_UPLOAD_DEFAULT_MB);
+    if ($mb < 1) $mb = MAX_UPLOAD_DEFAULT_MB;
+    $limits = [$mb * 1024 * 1024];
+    foreach (['upload_max_filesize', 'post_max_size'] as $d) {
+        $b = ini_bytes((string)ini_get($d));
+        if ($b > 0) $limits[] = $b;
+    }
+    return min($limits);
+}
+
+function max_upload_mb(): int
+{
+    return max(1, (int)floor(max_upload_bytes() / 1048576));
+}
+
+/**
  * Human-readable reason a single uploaded file failed, or null when it is fine.
  * Without this, a PHP-level failure (file larger than upload_max_filesize,
  * missing tmp dir, …) arrives with an empty tmp_name and looks like "no file".
@@ -352,6 +415,24 @@ function status_icon(string $status): string
     return '<svg class="chip-ic" width="13" height="13" viewBox="0 0 24 24" fill="none" '
         . 'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
         . $paths . '</svg>';
+}
+
+/**
+ * Attaching evidence means work has started, so lift a still-untouched
+ * indicator to "กำลังดำเนินการ". Never downgrades: an indicator already marked
+ * done stays done, and the school keeps control of the final step.
+ */
+function bump_status_inprogress(int $schoolId, int $indicatorId): void
+{
+    db()->prepare('
+        INSERT INTO school_indicator_status (school_id, indicator_id, status)
+        VALUES (?, ?, "inprogress")
+        ON DUPLICATE KEY UPDATE
+          -- updated_at is assigned first on purpose: MySQL applies these left to
+          -- right, so it must read status before status is overwritten
+          updated_at = IF(status = "pending", NOW(), updated_at),
+          status     = IF(status = "pending", "inprogress", status)
+    ')->execute([$schoolId, $indicatorId]);
 }
 
 /** Status chip HTML */

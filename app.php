@@ -257,6 +257,8 @@ const CSRF_TOKEN = '<?= csrf_token() ?>';
 const SCHOOL_ID = <?= $schoolId ?>;
 const YEAR_CODE = '<?= e($yearCode) ?>';
 const USER_ROLE = '<?= e($role) ?>';
+const MAX_UPLOAD    = <?= max_upload_bytes() ?>;
+const MAX_UPLOAD_MB = <?= max_upload_mb() ?>;
 </script>
 <script src="<?= asset('/assets/js/app.js') ?>"></script>
 </body>
