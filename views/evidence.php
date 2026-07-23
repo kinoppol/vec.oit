@@ -119,6 +119,14 @@ $selectedId = isset($_GET['indicator']) ? (int)$_GET['indicator'] : 0;
         <label class="form-label">หมายเหตุ</label>
         <textarea name="note" id="evNote" class="form-input form-textarea" rows="3" placeholder="คำอธิบายเพิ่มเติม (ไม่จำเป็น)" maxlength="1000"></textarea>
       </div>
+      <div class="up-prog hidden" id="evProgress" aria-live="polite">
+        <div class="up-prog-head">
+          <span id="evProgLabel">กำลังอัปโหลด…</span>
+          <span id="evProgPct"></span>
+        </div>
+        <div class="rms-prog-track" id="evProgTrack"><div class="rms-prog-fill" id="evProgFill"></div></div>
+        <div class="up-prog-sub" id="evProgSub"></div>
+      </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-ghost" onclick="closeEvModal()">ยกเลิก</button>
         <button type="submit" class="btn btn-primary" id="evSubmitBtn">บันทึกหลักฐาน</button>

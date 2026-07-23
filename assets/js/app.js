@@ -477,6 +477,9 @@ function openEvEdit(data) {
 }
 
 function closeEvModal() {
+    // Cancelling mid-upload aborts the request instead of leaving it running
+    if (evUploadXhr) { evUploadXhr.abort(); evUploadXhr = null; }
+    evProgReset();
     document.getElementById('evModal')?.classList.add('hidden');
 }
 
@@ -499,29 +502,113 @@ document.querySelectorAll('[name="link_type"]').forEach(radio => {
     radio.addEventListener('change', () => toggleLinkType(radio.value));
 });
 
+// ── Upload progress ───────────────────────────────────────
+// Uploading a large evidence file can take a while with no visible feedback,
+// so the submit goes through XMLHttpRequest (fetch cannot report upload
+// progress) and drives a bar in the modal.
+let evUploadXhr = null;
+
+function fmtBytes(b) {
+    if (b < 1024) return b + ' B';
+    if (b < 1048576) return (b / 1024).toFixed(0) + ' KB';
+    return (b / 1048576).toFixed(1) + ' MB';
+}
+
+function evProgShow(fileCount) {
+    const box = document.getElementById('evProgress');
+    if (!box) return;
+    box.classList.remove('hidden');
+    document.getElementById('evProgTrack').classList.remove('indeterminate');
+    document.getElementById('evProgFill').style.width = '0';
+    document.getElementById('evProgPct').textContent = '0%';
+    document.getElementById('evProgLabel').textContent =
+        fileCount > 1 ? 'กำลังอัปโหลด ' + fileCount + ' ไฟล์…' : 'กำลังอัปโหลด…';
+    document.getElementById('evProgSub').textContent = 'กรุณาอย่าปิดหน้านี้';
+    const btn = document.getElementById('evSubmitBtn');
+    btn.classList.add('btn-uploading');
+    btn.dataset.label = btn.textContent;
+    btn.textContent = 'กำลังอัปโหลด…';
+}
+
+function evProgUpdate(loaded, total) {
+    const pct = total ? Math.round(loaded / total * 100) : 0;
+    document.getElementById('evProgFill').style.width = pct + '%';
+    document.getElementById('evProgPct').textContent = pct + '%';
+    document.getElementById('evProgSub').textContent = fmtBytes(loaded) + ' / ' + fmtBytes(total);
+}
+
+// Bytes are all sent but the server is still writing files — switch the bar to
+// the indeterminate sweep so it does not look frozen at 100%.
+function evProgProcessing() {
+    document.getElementById('evProgTrack')?.classList.add('indeterminate');
+    document.getElementById('evProgPct').textContent = '';
+    document.getElementById('evProgLabel').textContent = 'กำลังบันทึกที่เซิร์ฟเวอร์…';
+    document.getElementById('evProgSub').textContent = 'อีกสักครู่';
+}
+
+function evProgReset() {
+    document.getElementById('evProgress')?.classList.add('hidden');
+    document.getElementById('evProgTrack')?.classList.remove('indeterminate');
+    const btn = document.getElementById('evSubmitBtn');
+    if (btn) {
+        btn.classList.remove('btn-uploading');
+        btn.disabled = false;
+        if (btn.dataset.label) btn.textContent = btn.dataset.label;
+    }
+}
+
 // Evidence form submit
 const evForm = document.getElementById('evForm');
 if (evForm) {
-    evForm.addEventListener('submit', async function (e) {
+    evForm.addEventListener('submit', function (e) {
         e.preventDefault();
         const btn = document.getElementById('evSubmitBtn');
         btn.disabled = true;
         const fd = new FormData(this);
         fd.set('csrf_token', CSRF_TOKEN);
-        try {
-            const res  = await fetch(APP_URL + '/api.php', { method: 'POST', body: fd });
-            const json = await res.json();
+
+        const files = document.getElementById('evFileInput')?.files;
+        const isFile = document.querySelector('[name="link_type"]:checked')?.value === 'file';
+        const nFiles = isFile && files ? files.length : 0;
+        if (nFiles) evProgShow(nFiles);
+
+        const done = json => {
             if (json.ok) {
                 const isEdit = document.getElementById('evAction').value === 'edit_evidence';
                 const n = json.data && json.data.created ? json.data.created : 1;
+                evProgReset();
                 closeEvModal();
                 showToast(isEdit ? 'บันทึกการแก้ไขเรียบร้อย'
                                  : (n > 1 ? 'เพิ่มหลักฐาน ' + n + ' รายการเรียบร้อย' : 'เพิ่มหลักฐานเรียบร้อย'));
                 // Reload detail panel
                 if (window.selectedIndicatorId) loadIndicator(window.selectedIndicatorId);
-            } else { showToast(json.error, 'error'); }
-        } catch { showToast('เกิดข้อผิดพลาด', 'error'); }
-        btn.disabled = false;
+            } else {
+                evProgReset();
+                showToast(json.error, 'error');
+            }
+        };
+
+        const xhr = new XMLHttpRequest();
+        evUploadXhr = xhr;
+        xhr.open('POST', APP_URL + '/api.php');
+        xhr.upload.addEventListener('progress', ev => {
+            if (!nFiles || !ev.lengthComputable) return;
+            evProgUpdate(ev.loaded, ev.total);
+            if (ev.loaded >= ev.total) evProgProcessing();
+        });
+        xhr.addEventListener('load', () => {
+            evUploadXhr = null;
+            let json;
+            try { json = JSON.parse(xhr.responseText); }
+            catch { evProgReset(); showToast('เกิดข้อผิดพลาด', 'error'); return; }
+            done(json);
+        });
+        xhr.addEventListener('error', () => {
+            evUploadXhr = null; evProgReset();
+            showToast('เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ', 'error');
+        });
+        xhr.addEventListener('abort', () => { evUploadXhr = null; evProgReset(); });
+        xhr.send(fd);
     });
 }
 
