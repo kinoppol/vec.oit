@@ -47,6 +47,39 @@ function json_err(string $msg, int $code = 400): never
     exit;
 }
 
+/**
+ * Human-readable reason a single uploaded file failed, or null when it is fine.
+ * Without this, a PHP-level failure (file larger than upload_max_filesize,
+ * missing tmp dir, …) arrives with an empty tmp_name and looks like "no file".
+ */
+function upload_error_text(int $code, string $fn = ''): ?string
+{
+    $label = $fn !== '' ? 'ไฟล์ "' . $fn . '": ' : '';
+    return match ($code) {
+        UPLOAD_ERR_OK        => null,
+        UPLOAD_ERR_NO_FILE   => null,
+        UPLOAD_ERR_INI_SIZE  => $label . 'ไฟล์ใหญ่เกินที่เซิร์ฟเวอร์อนุญาต (upload_max_filesize = '
+                                . ini_get('upload_max_filesize') . ')',
+        UPLOAD_ERR_FORM_SIZE => $label . 'ไฟล์ใหญ่เกินที่ฟอร์มอนุญาต',
+        UPLOAD_ERR_PARTIAL   => $label . 'อัปโหลดไม่ครบ กรุณาลองใหม่',
+        UPLOAD_ERR_NO_TMP_DIR=> $label . 'เซิร์ฟเวอร์ไม่มีโฟลเดอร์ชั่วคราวสำหรับอัปโหลด',
+        UPLOAD_ERR_CANT_WRITE=> $label . 'เซิร์ฟเวอร์เขียนไฟล์ลงดิสก์ไม่สำเร็จ',
+        UPLOAD_ERR_EXTENSION => $label . 'ส่วนขยายของ PHP ระงับการอัปโหลดไฟล์นี้',
+        default              => $label . 'อัปโหลดไม่สำเร็จ (รหัส ' . $code . ')',
+    };
+}
+
+/**
+ * Guard for the whole request: when the POST body exceeds post_max_size PHP
+ * discards $_POST and $_FILES entirely, so the request looks empty.
+ */
+function post_too_large(): bool
+{
+    return ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
+        && empty($_POST) && empty($_FILES)
+        && (int)($_SERVER['CONTENT_LENGTH'] ?? 0) > 0;
+}
+
 function is_ajax(): bool
 {
     return str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json')

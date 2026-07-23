@@ -11,6 +11,12 @@ const EV_ALLOWED_EXT       = ['pdf','doc','docx','xls','xlsx','jpg','jpeg','png'
 const EV_IMAGE_EXT         = ['jpg','jpeg','png','gif','webp'];
 const CRITERIA_ALLOWED_EXT = ['jpg','jpeg','png','gif','webp','pdf','doc','docx'];
 
+// A body over post_max_size arrives with $_POST/$_FILES emptied by PHP, which
+// would otherwise surface as a confusing "missing data" error.
+if (post_too_large()) {
+    json_err('ข้อมูลที่ส่งใหญ่เกินที่เซิร์ฟเวอร์อนุญาต (post_max_size = ' . ini_get('post_max_size') . ')', 413);
+}
+
 // Parse action from POST body or GET
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 
@@ -415,9 +421,12 @@ function addEvidence(): never {
         $names = is_array($f['name'])     ? $f['name']     : [$f['name']];
         $tmps  = is_array($f['tmp_name']) ? $f['tmp_name'] : [$f['tmp_name']];
         $sizes = is_array($f['size'])     ? $f['size']     : [$f['size']];
+    $errs  = is_array($f['error'])    ? $f['error']    : [$f['error']];
+        $errs  = is_array($f['error'])    ? $f['error']    : [$f['error']];
         $multi = count(array_filter($names, fn($n) => $n !== '')) > 1;
 
         foreach ($names as $i => $fn) {
+            if ($msg = upload_error_text((int)($errs[$i] ?? 0), $fn)) json_err($msg);
             if ($fn === '' || empty($tmps[$i])) continue;
             if ($sizes[$i] > MAX_UPLOAD) json_err('ไฟล์ "' . $fn . '" ใหญ่เกิน 10 MB');
             $ext = strtolower(pathinfo($fn, PATHINFO_EXTENSION));
@@ -491,6 +500,8 @@ function editEvidence(): never {
         $upName = is_array($f['name'] ?? null) ? ($f['name'][0] ?? '') : ($f['name'] ?? '');
         $upTmp  = is_array($f['tmp_name'] ?? null) ? ($f['tmp_name'][0] ?? '') : ($f['tmp_name'] ?? '');
         $upSize = is_array($f['size'] ?? null) ? ($f['size'][0] ?? 0) : ($f['size'] ?? 0);
+        $upErr  = is_array($f['error'] ?? null) ? ($f['error'][0] ?? 0) : ($f['error'] ?? 0);
+        if ($msg = upload_error_text((int)$upErr, $upName)) json_err($msg);
         // Replace file only if a new one is uploaded; otherwise keep the existing file
         if ($upName !== '' && $upTmp !== '') {
             if ($upSize > MAX_UPLOAD) json_err('ไฟล์ใหญ่เกิน 10 MB');
@@ -1511,10 +1522,12 @@ function addCriteriaFile(): never {
     $names = is_array($f['name'])     ? $f['name']     : [$f['name']];
     $tmps  = is_array($f['tmp_name']) ? $f['tmp_name'] : [$f['tmp_name']];
     $sizes = is_array($f['size'])     ? $f['size']     : [$f['size']];
+    $errs  = is_array($f['error'])    ? $f['error']    : [$f['error']];
 
     $ins = db()->prepare('INSERT INTO indicator_files (indicator_id, title, file_path, type, uploaded_by) VALUES (?,?,?,?,?)');
     $created = 0;
     foreach ($names as $i => $fn) {
+        if ($msg = upload_error_text((int)($errs[$i] ?? 0), $fn)) json_err($msg);
         if ($fn === '' || empty($tmps[$i])) continue;
         if ($sizes[$i] > MAX_UPLOAD) json_err('ไฟล์ "' . $fn . '" ใหญ่เกิน 10 MB');
         $ext = strtolower(pathinfo($fn, PATHINFO_EXTENSION));
@@ -1558,10 +1571,12 @@ function addYearFile(): never {
     $names = is_array($f['name'])     ? $f['name']     : [$f['name']];
     $tmps  = is_array($f['tmp_name']) ? $f['tmp_name'] : [$f['tmp_name']];
     $sizes = is_array($f['size'])     ? $f['size']     : [$f['size']];
+    $errs  = is_array($f['error'])    ? $f['error']    : [$f['error']];
 
     $ins = db()->prepare('INSERT INTO fiscal_year_files (fiscal_year_id, title, file_path, type, uploaded_by) VALUES (?,?,?,?,?)');
     $created = 0;
     foreach ($names as $i => $fn) {
+        if ($msg = upload_error_text((int)($errs[$i] ?? 0), $fn)) json_err($msg);
         if ($fn === '' || empty($tmps[$i])) continue;
         if ($sizes[$i] > MAX_UPLOAD) json_err('ไฟล์ "' . $fn . '" ใหญ่เกิน 10 MB');
         $ext = strtolower(pathinfo($fn, PATHINFO_EXTENSION));
