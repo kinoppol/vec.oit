@@ -202,15 +202,6 @@ $pageTitle = match($mode) {
         <input type="password" name="password" placeholder="รหัสผ่าน" autocomplete="current-password">
         <button type="submit" class="btn-primary btn-full mt-5">เข้าสู่ระบบ</button>
       </form>
-      <div class="auth-demo-wrap">
-        <div class="auth-demo-divider">เข้าชมแบบสาธิตตามบทบาท</div>
-        <div class="auth-demo-grid">
-          <form method="post"><input type="hidden" name="national_id" value="1100700234567"><input type="hidden" name="password" value="password"><?= csrf_field() ?><button type="submit" class="btn-demo">ผู้กรอกข้อมูล</button></form>
-          <form method="post"><input type="hidden" name="national_id" value="1100700123456"><input type="hidden" name="password" value="password"><?= csrf_field() ?><button type="submit" class="btn-demo">ผู้ดูแลสถานศึกษา</button></form>
-          <form method="post"><input type="hidden" name="national_id" value="0000000000001"><input type="hidden" name="password" value="password"><?= csrf_field() ?><button type="submit" class="btn-demo">ผู้ดูแลส่วนกลาง</button></form>
-          <a href="<?= APP_URL ?>/public.php?slug=nakhonluang&year=2568" class="btn-demo" style="text-align:center;text-decoration:none">มุมมองสาธารณะ</a>
-        </div>
-      </div>
       <div class="auth-hint">ชื่อผู้ใช้คือ <strong>เลขประจำตัวประชาชน</strong> · รหัสผ่านเริ่มต้นระบบจะสุ่มให้โดยอัตโนมัติ และต้องเปลี่ยนเมื่อเข้าใช้งานครั้งแรก</div>
       <div class="auth-switch">สถานศึกษายังไม่มีบัญชี? <a href="?mode=register">สมัครใช้งานระบบ</a></div>
     </div>
