@@ -71,11 +71,27 @@ $pct = $total ? round($done / $total * 100) : 0;
   <div class="track-summary">
     <div class="track-metric">
       <div class="track-ring">
+        <?php
+        $circ     = 2 * M_PI * 50;
+        $tt       = max(1, $total);
+        $doneDash = $circ * $done / $tt;
+        $progDash = $circ * $prog / $tt;
+        ?>
         <svg viewBox="0 0 120 120">
           <circle cx="60" cy="60" r="50" fill="none" stroke="var(--surface-3)" stroke-width="12"/>
-          <circle cx="60" cy="60" r="50" fill="none" stroke="var(--primary)" stroke-width="12" stroke-linecap="round"
-                  stroke-dasharray="<?= round(2*M_PI*50*$pct/100,2) ?> <?= round(2*M_PI*50,2) ?>"
-                  stroke-dashoffset="<?= round(2*M_PI*50/4,2) ?>"/>
+          <!-- Rotate -90° so both arcs start at 12 o'clock; done first, then in-progress. -->
+          <g transform="rotate(-90 60 60)">
+            <?php if ($progDash > 0): ?>
+            <circle class="ring-prog" cx="60" cy="60" r="50" fill="none" stroke="#D9A441" stroke-width="12" stroke-linecap="round"
+                    stroke-dasharray="<?= round($progDash,2) ?> <?= round($circ,2) ?>"
+                    stroke-dashoffset="<?= round(-$doneDash,2) ?>"/>
+            <?php endif; ?>
+            <?php if ($doneDash > 0): ?>
+            <circle cx="60" cy="60" r="50" fill="none" stroke="var(--primary)" stroke-width="12" stroke-linecap="round"
+                    stroke-dasharray="<?= round($doneDash,2) ?> <?= round($circ,2) ?>"
+                    stroke-dashoffset="0"/>
+            <?php endif; ?>
+          </g>
           <text x="60" y="58" text-anchor="middle" font-size="24" font-weight="800" fill="var(--text-primary)"><?= $pct ?>%</text>
           <text x="60" y="76" text-anchor="middle" font-size="10" fill="var(--text-tertiary)">เผยแพร่แล้ว</text>
         </svg>
