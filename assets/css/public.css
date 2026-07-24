@@ -24,6 +24,13 @@ img { display: block; max-width: 100%; }
   box-shadow: 0 8px 24px -16px rgba(90,20,28,.25);
 }
 .pub-ring-wrap { flex-shrink: 0; text-align: center; }
+/* The in-progress arc breathes to signal ongoing work */
+.pub-ring-prog { transform-origin: 60px 60px; animation: pubRingPulse 1.8s ease-in-out infinite; }
+@keyframes pubRingPulse {
+  0%, 100% { opacity: .5; stroke-width: 11; }
+  50%      { opacity: 1;  stroke-width: 13; }
+}
+@media (prefers-reduced-motion: reduce) { .pub-ring-prog { animation: none; opacity: 1; } }
 .pub-ring-legend { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; font-size: 11px; color: #7E7267; }
 .pub-ring-legend span { display: inline-flex; align-items: center; gap: 5px; justify-content: center; }
 .pub-ring-legend i { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }

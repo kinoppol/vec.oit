@@ -134,9 +134,10 @@ foreach ($tree as $s) { $secTitle[$s['code']] = $s['title']; }
       <svg class="ring" viewBox="0 0 120 120">
         <circle cx="60" cy="60" r="50" fill="none" stroke="#e8e0da" stroke-width="12"/>
         <?php if ($progDash > 0): ?>
-        <circle cx="60" cy="60" r="50" fill="none" stroke="#D9A441" stroke-width="12"
+        <circle class="pub-ring-prog" cx="60" cy="60" r="50" fill="none" stroke="#D9A441" stroke-width="12"
                 stroke-dasharray="<?= round($progDash,2) ?> <?= round($circ,2) ?>"
-                stroke-dashoffset="<?= round($circ/4 - $doneDash,2) ?>"/>
+                stroke-dashoffset="<?= round($circ/4 - $doneDash,2) ?>"
+                stroke-linecap="round"/>
         <?php endif; ?>
         <?php if ($doneDash > 0): ?>
         <circle cx="60" cy="60" r="50" fill="none" stroke="#7A1E28" stroke-width="12"
