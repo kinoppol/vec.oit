@@ -133,18 +133,22 @@ foreach ($tree as $s) { $secTitle[$s['code']] = $s['title']; }
     <div class="pub-ring-wrap">
       <svg class="ring" viewBox="0 0 120 120">
         <circle cx="60" cy="60" r="50" fill="none" stroke="#e8e0da" stroke-width="12"/>
-        <?php if ($progDash > 0): ?>
-        <circle class="pub-ring-prog" cx="60" cy="60" r="50" fill="none" stroke="#D9A441" stroke-width="12"
-                stroke-dasharray="<?= round($progDash,2) ?> <?= round($circ,2) ?>"
-                stroke-dashoffset="<?= round($circ/4 - $doneDash,2) ?>"
-                stroke-linecap="round"/>
-        <?php endif; ?>
-        <?php if ($doneDash > 0): ?>
-        <circle cx="60" cy="60" r="50" fill="none" stroke="#7A1E28" stroke-width="12"
-                stroke-dasharray="<?= round($doneDash,2) ?> <?= round($circ,2) ?>"
-                stroke-dashoffset="<?= round($circ/4,2) ?>"
-                stroke-linecap="round"/>
-        <?php endif; ?>
+        <!-- Rotate -90° so both arcs start at 12 o'clock; segments stack via a
+             cumulative negative dashoffset (done first, then in-progress). -->
+        <g transform="rotate(-90 60 60)">
+          <?php if ($progDash > 0): ?>
+          <circle class="pub-ring-prog" cx="60" cy="60" r="50" fill="none" stroke="#D9A441" stroke-width="12"
+                  stroke-dasharray="<?= round($progDash,2) ?> <?= round($circ,2) ?>"
+                  stroke-dashoffset="<?= round(-$doneDash,2) ?>"
+                  stroke-linecap="round"/>
+          <?php endif; ?>
+          <?php if ($doneDash > 0): ?>
+          <circle cx="60" cy="60" r="50" fill="none" stroke="#7A1E28" stroke-width="12"
+                  stroke-dasharray="<?= round($doneDash,2) ?> <?= round($circ,2) ?>"
+                  stroke-dashoffset="0"
+                  stroke-linecap="round"/>
+          <?php endif; ?>
+        </g>
         <text x="60" y="57" text-anchor="middle" font-size="22" font-weight="700" fill="#2A2520"><?= $r ?>%</text>
         <text x="60" y="73" text-anchor="middle" font-size="9" fill="#7E7267">เผยแพร่แล้ว</text>
       </svg>
