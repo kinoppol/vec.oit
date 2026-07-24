@@ -205,10 +205,13 @@ foreach ($tree as $s) { $secTitle[$s['code']] = $s['title']; }
         </div>
         <h2 class="pub-detail-title"><?= e($ind['title']) ?></h2>
         <?php if (!empty($ind['criteria'])): ?>
-        <div class="pub-detail-criteria">
-          <div class="pub-detail-criteria-hdr">เกณฑ์การพิจารณา</div>
-          <?= nl2br(e($ind['criteria'])) ?>
-        </div>
+        <details class="pub-detail-criteria">
+          <summary class="pub-detail-criteria-hdr">
+            เกณฑ์การพิจารณา
+            <svg class="pub-criteria-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </summary>
+          <div class="pub-detail-criteria-body"><?= nl2br(e($ind['criteria'])) ?></div>
+        </details>
         <?php endif; ?>
         <div class="pub-detail-ev">
           <div class="pub-detail-ev-hdr">หลักฐานที่เผยแพร่<?= $ind['published'] ? ' (' . count($ind['evidences']) . ')' : '' ?></div>
