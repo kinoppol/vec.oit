@@ -64,7 +64,10 @@ foreach ($tree as $sec) {
 $logoUrl = school_emblem_url($school);
 $r = $stats['pct'];
 $circ = 2 * M_PI * 50;
-$pctDash = $circ * $r / 100;
+// Two stacked arcs: "เผยแพร่แล้ว" (done) then "กำลังดำเนินการ" (in progress).
+$total    = max(1, (int)$stats['total']);
+$doneDash = $circ * (int)$stats['done'] / $total;
+$progDash = $circ * (int)$stats['prog'] / $total;
 
 /** Render the evidence list HTML for one indicator (public, read-only) */
 function render_pub_ev(array $ind): string
@@ -130,13 +133,24 @@ foreach ($tree as $s) { $secTitle[$s['code']] = $s['title']; }
     <div class="pub-ring-wrap">
       <svg class="ring" viewBox="0 0 120 120">
         <circle cx="60" cy="60" r="50" fill="none" stroke="#e8e0da" stroke-width="12"/>
+        <?php if ($progDash > 0): ?>
+        <circle cx="60" cy="60" r="50" fill="none" stroke="#D9A441" stroke-width="12"
+                stroke-dasharray="<?= round($progDash,2) ?> <?= round($circ,2) ?>"
+                stroke-dashoffset="<?= round($circ/4 - $doneDash,2) ?>"/>
+        <?php endif; ?>
+        <?php if ($doneDash > 0): ?>
         <circle cx="60" cy="60" r="50" fill="none" stroke="#7A1E28" stroke-width="12"
-                stroke-dasharray="<?= round($pctDash,2) ?> <?= round($circ,2) ?>"
+                stroke-dasharray="<?= round($doneDash,2) ?> <?= round($circ,2) ?>"
                 stroke-dashoffset="<?= round($circ/4,2) ?>"
                 stroke-linecap="round"/>
+        <?php endif; ?>
         <text x="60" y="57" text-anchor="middle" font-size="22" font-weight="700" fill="#2A2520"><?= $r ?>%</text>
         <text x="60" y="73" text-anchor="middle" font-size="9" fill="#7E7267">เผยแพร่แล้ว</text>
       </svg>
+      <div class="pub-ring-legend">
+        <span><i style="background:#7A1E28"></i>เผยแพร่แล้ว</span>
+        <span><i style="background:#D9A441"></i>กำลังดำเนินการ</span>
+      </div>
     </div>
     <div class="pub-stat-row">
       <div class="pub-stat">
