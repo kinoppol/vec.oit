@@ -774,6 +774,10 @@ a.ev-name:hover { text-decoration: underline; }
   padding: 10px 13px; border: 1px solid var(--border-strong);
   border-radius: 9px; background: var(--surface);
   color: var(--text-primary); font-size: 14.5px;
+  /* Without an explicit line-height, single-line inputs use "normal" (~1.2),
+     which clips Thai tone marks above the consonant and the underscore below.
+     1.6 leaves room for both. */
+  line-height: 1.6;
   transition: border-color .15s;
 }
 .form-input:focus { border-color: var(--primary) !important; }
@@ -1013,7 +1017,7 @@ select.form-input { appearance: none; text-overflow: ellipsis; background-image:
 .auth-sub { margin: 0 0 22px; color: var(--text-secondary); font-size: 14px; line-height: 1.6; }
 .alert-err { color: var(--danger); background: var(--danger-soft); border-radius: 8px; padding: 9px 13px; font-size: 13.5px; margin-bottom: 14px; }
 .auth-form-box form label, .auth-card form label { display: block; font-size: 13.5px; font-weight: 600; margin-bottom: 7px; color: var(--text-primary); }
-.auth-form-box form input, .auth-card form input { width: 100%; padding: 12px 14px; border: 1px solid var(--border-strong); border-radius: 10px; font-family: inherit; font-size: 15px; background: var(--surface); color: var(--text-primary); margin-bottom: 16px; }
+.auth-form-box form input, .auth-card form input { width: 100%; padding: 12px 14px; border: 1px solid var(--border-strong); border-radius: 10px; font-family: inherit; font-size: 15px; line-height: 1.6; background: var(--surface); color: var(--text-primary); margin-bottom: 16px; }
 .auth-form-box form input:focus, .auth-card form input:focus { border-color: var(--primary); outline: none; }
 .btn-full { width: 100%; }
 .mt-5 { margin-top: 20px; }

@@ -85,7 +85,7 @@ img { display: block; max-width: 100%; }
 }
 .pub-menu-search { padding: 12px; border-bottom: 1px solid #EFE9E3; }
 .pub-menu-search input {
-  width: 100%; padding: 9px 12px; font-family: inherit; font-size: 13.5px;
+  width: 100%; padding: 9px 12px; font-family: inherit; font-size: 13.5px; line-height: 1.6;
   border: 1px solid #E0D6CD; border-radius: 9px; background: #FAF7F3; color: #221C18;
 }
 .pub-menu-search input:focus { outline: none; border-color: #7A1E28; background: #fff; }
