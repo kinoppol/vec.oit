@@ -37,18 +37,23 @@ $tree  = indicator_tree((int)$school['id'], $yearCode);
 $stats = dashboard_stats((int)$school['id'], $yearCode);
 
 // Flatten all indicators + their evidences.
-// The public view shows only indicators the school has marked "เผยแพร่แล้ว"
-// (done); anything still pending/in-progress stays hidden from the public.
+// Every indicator is listed publicly, but attached documents are shown only
+// for indicators the school has marked "เผยแพร่แล้ว" (done). Indicators in any
+// other status list with a "ยังไม่มีเอกสารเผยแพร่" note instead of their files.
 $allInds = [];
 foreach ($tree as $sec) {
     foreach ($sec['subs'] as $sub) {
         foreach ($sub['inds'] as $ind) {
-            if (($ind['status'] ?? '') !== 'done') continue;
-            // Load evidences
-            // Only evidence the responsible has accepted is published
-            $evStmt = db()->prepare('SELECT * FROM evidences WHERE indicator_id = ? AND school_id = ? AND accepted = 1 ORDER BY sort_order ASC, id ASC');
-            $evStmt->execute([$ind['id'], $school['id']]);
-            $ind['evidences'] = $evStmt->fetchAll();
+            $published = ($ind['status'] ?? '') === 'done';
+            if ($published) {
+                // Only evidence the responsible has accepted is published
+                $evStmt = db()->prepare('SELECT * FROM evidences WHERE indicator_id = ? AND school_id = ? AND accepted = 1 ORDER BY sort_order ASC, id ASC');
+                $evStmt->execute([$ind['id'], $school['id']]);
+                $ind['evidences'] = $evStmt->fetchAll();
+            } else {
+                $ind['evidences'] = [];
+            }
+            $ind['published'] = $published;
             $ind['sec_code']  = $sec['code'];
             $ind['sub_code']  = $sub['code'];
             $allInds[] = $ind;
@@ -64,6 +69,7 @@ $pctDash = $circ * $r / 100;
 /** Render the evidence list HTML for one indicator (public, read-only) */
 function render_pub_ev(array $ind): string
 {
+    if (empty($ind['published'])) return '<div class="pub-no-ev">ยังไม่มีเอกสารเผยแพร่</div>';
     if (empty($ind['evidences'])) return '<div class="pub-no-ev">ยังไม่มีหลักฐานที่เผยแพร่</div>';
     $linkIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
     $fileIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h11l5 5v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M14 4v5h5"/></svg>';
@@ -169,9 +175,6 @@ foreach ($tree as $s) { $secTitle[$s['code']] = $s['title']; }
         <input type="search" id="pubSearch" placeholder="ค้นหาตัวชี้วัด…" autocomplete="off">
       </div>
       <div class="pub-menu-body">
-        <?php if (empty($allInds)): ?>
-        <div class="pub-menu-empty">ยังไม่มีตัวชี้วัดที่เผยแพร่</div>
-        <?php endif; ?>
         <?php $curSec = null; foreach ($allInds as $ind):
           if ($ind['sec_code'] !== $curSec):
             if ($curSec !== null) echo '</div>';
@@ -194,9 +197,6 @@ foreach ($tree as $s) { $secTitle[$s['code']] = $s['title']; }
 
     <!-- RIGHT: evidence detail -->
     <section class="pub-detail" id="pubDetail">
-      <?php if (empty($allInds)): ?>
-      <div class="pub-no-ev">ยังไม่มีตัวชี้วัดที่เผยแพร่ในปีงบประมาณนี้</div>
-      <?php endif; ?>
       <?php foreach ($allInds as $ind): ?>
       <article class="pub-detail-panel" id="ind<?= (int)$ind['id'] ?>" hidden>
         <div class="pub-detail-head">
@@ -211,7 +211,7 @@ foreach ($tree as $s) { $secTitle[$s['code']] = $s['title']; }
         </div>
         <?php endif; ?>
         <div class="pub-detail-ev">
-          <div class="pub-detail-ev-hdr">หลักฐานที่เผยแพร่ (<?= count($ind['evidences']) ?>)</div>
+          <div class="pub-detail-ev-hdr">หลักฐานที่เผยแพร่<?= $ind['published'] ? ' (' . count($ind['evidences']) . ')' : '' ?></div>
           <?= render_pub_ev($ind) ?>
         </div>
       </article>
