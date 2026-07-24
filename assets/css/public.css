@@ -124,6 +124,12 @@ img { display: block; max-width: 100%; }
 }
 
 .pub-footer { max-width: 1240px; margin: 0 auto; padding: 18px 28px 36px; font-size: 12px; color: #9E938A; text-align: center; }
+.pub-login-link {
+  display: inline-flex; align-items: center; gap: 5px; margin-top: 8px;
+  font-size: 12px; color: #9E938A; opacity: .85; transition: color .15s, opacity .15s;
+}
+.pub-login-link:hover { color: #7A1E28; opacity: 1; }
+.pub-login-link svg { flex-shrink: 0; }
 
 /* ══════════ PUBLIC OVERVIEW (all schools) ══════════ */
 .ov-hero {
