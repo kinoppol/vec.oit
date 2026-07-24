@@ -250,7 +250,17 @@ body.nav-open .sidebar-backdrop { display: block; }
 /* ── Dashboard Grid ── */
 .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 .dash-hero { grid-column: 1 / -1; display: flex; align-items: center; gap: 32px; padding: 24px 28px; }
-.ring-wrap { flex-shrink: 0; }
+.ring-wrap { flex-shrink: 0; text-align: center; }
+.ring-legend { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; font-size: 11px; color: var(--text-secondary); }
+.ring-legend span { display: inline-flex; align-items: center; gap: 5px; justify-content: center; }
+.ring-legend i { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+/* The in-progress arc breathes to signal ongoing work */
+.ring-prog { animation: ringPulse 1.8s ease-in-out infinite; }
+@keyframes ringPulse {
+  0%, 100% { opacity: .5; stroke-width: 11; }
+  50%      { opacity: 1;  stroke-width: 13; }
+}
+@media (prefers-reduced-motion: reduce) { .ring-prog { animation: none; opacity: 1; } }
 .ring { width: 140px; height: 140px; }
 .stats-row { display: flex; gap: 18px; flex-wrap: wrap; flex: 1; }
 .stat-card {

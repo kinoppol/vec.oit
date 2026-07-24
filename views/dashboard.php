@@ -37,16 +37,35 @@ $yearFiles = $yfStmt->fetchAll();
         <?php
         $r = 50; $cx = 60; $cy = 60;
         $circ = 2 * M_PI * $r;
-        $pctDash = ($circ * $stats['pct'] / 100);
+        // Two stacked arcs: "เผยแพร่แล้ว" (done) then "กำลังดำเนินการ" (in progress)
+        $total    = max(1, (int)$stats['total']);
+        $doneDash = $circ * (int)$stats['done'] / $total;
+        $progDash = $circ * (int)$stats['prog'] / $total;
         ?>
         <circle cx="<?= $cx ?>" cy="<?= $cy ?>" r="<?= $r ?>" fill="none" stroke="var(--ring-bg)" stroke-width="12"/>
-        <circle cx="<?= $cx ?>" cy="<?= $cy ?>" r="<?= $r ?>" fill="none" stroke="var(--primary)" stroke-width="12"
-                stroke-dasharray="<?= round($pctDash,2) ?> <?= round($circ,2) ?>"
-                stroke-dashoffset="<?= round($circ / 4, 2) ?>"
-                stroke-linecap="round"/>
+        <!-- Rotate -90° so both arcs start at 12 o'clock; segments stack via a
+             cumulative negative dashoffset (done first, then in-progress). -->
+        <g transform="rotate(-90 <?= $cx ?> <?= $cy ?>)">
+          <?php if ($progDash > 0): ?>
+          <circle class="ring-prog" cx="<?= $cx ?>" cy="<?= $cy ?>" r="<?= $r ?>" fill="none" stroke="#D9A441" stroke-width="12"
+                  stroke-dasharray="<?= round($progDash,2) ?> <?= round($circ,2) ?>"
+                  stroke-dashoffset="<?= round(-$doneDash,2) ?>"
+                  stroke-linecap="round"/>
+          <?php endif; ?>
+          <?php if ($doneDash > 0): ?>
+          <circle cx="<?= $cx ?>" cy="<?= $cy ?>" r="<?= $r ?>" fill="none" stroke="var(--primary)" stroke-width="12"
+                  stroke-dasharray="<?= round($doneDash,2) ?> <?= round($circ,2) ?>"
+                  stroke-dashoffset="0"
+                  stroke-linecap="round"/>
+          <?php endif; ?>
+        </g>
         <text x="60" y="57" text-anchor="middle" font-size="22" font-weight="700" fill="var(--text-primary)"><?= $stats['pct'] ?>%</text>
         <text x="60" y="73" text-anchor="middle" font-size="9" fill="var(--text-secondary)">เผยแพร่แล้ว</text>
       </svg>
+      <div class="ring-legend">
+        <span><i style="background:var(--primary)"></i>เผยแพร่แล้ว</span>
+        <span><i style="background:#D9A441"></i>กำลังดำเนินการ</span>
+      </div>
     </div>
     <div class="stats-row">
       <div class="stat-card">
