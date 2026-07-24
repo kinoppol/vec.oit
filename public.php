@@ -36,11 +36,14 @@ if (!$fy) {
 $tree  = indicator_tree((int)$school['id'], $yearCode);
 $stats = dashboard_stats((int)$school['id'], $yearCode);
 
-// Flatten all indicators + their evidences
+// Flatten all indicators + their evidences.
+// The public view shows only indicators the school has marked "เผยแพร่แล้ว"
+// (done); anything still pending/in-progress stays hidden from the public.
 $allInds = [];
 foreach ($tree as $sec) {
     foreach ($sec['subs'] as $sub) {
         foreach ($sub['inds'] as $ind) {
+            if (($ind['status'] ?? '') !== 'done') continue;
             // Load evidences
             // Only evidence the responsible has accepted is published
             $evStmt = db()->prepare('SELECT * FROM evidences WHERE indicator_id = ? AND school_id = ? AND accepted = 1 ORDER BY sort_order ASC, id ASC');
@@ -166,6 +169,9 @@ foreach ($tree as $s) { $secTitle[$s['code']] = $s['title']; }
         <input type="search" id="pubSearch" placeholder="ค้นหาตัวชี้วัด…" autocomplete="off">
       </div>
       <div class="pub-menu-body">
+        <?php if (empty($allInds)): ?>
+        <div class="pub-menu-empty">ยังไม่มีตัวชี้วัดที่เผยแพร่</div>
+        <?php endif; ?>
         <?php $curSec = null; foreach ($allInds as $ind):
           if ($ind['sec_code'] !== $curSec):
             if ($curSec !== null) echo '</div>';
@@ -188,6 +194,9 @@ foreach ($tree as $s) { $secTitle[$s['code']] = $s['title']; }
 
     <!-- RIGHT: evidence detail -->
     <section class="pub-detail" id="pubDetail">
+      <?php if (empty($allInds)): ?>
+      <div class="pub-no-ev">ยังไม่มีตัวชี้วัดที่เผยแพร่ในปีงบประมาณนี้</div>
+      <?php endif; ?>
       <?php foreach ($allInds as $ind): ?>
       <article class="pub-detail-panel" id="ind<?= (int)$ind['id'] ?>" hidden>
         <div class="pub-detail-head">
