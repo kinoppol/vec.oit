@@ -16,6 +16,18 @@ img { display: block; max-width: 100%; }
 .pub-ovec { display: flex; align-items: center; gap: 10px; margin-left: auto; font-size: 12px; opacity: .85; text-align: right; }
 .pub-ovec-logo { width: 34px; height: 34px; object-fit: contain; border-radius: 50%; background: #fff; padding: 3px; }
 
+.pub-login-btn {
+  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
+  padding: 8px 16px; margin-left: 18px; border-radius: 20px;
+  background: rgba(255,255,255,.14); border: 1.5px solid rgba(255,255,255,.55);
+  color: #fff; font-size: 13.5px; font-weight: 700;
+  transition: background .15s, border-color .15s;
+}
+.pub-login-btn:hover { background: #fff; border-color: #fff; color: #7A1E28; }
+.pub-login-btn svg { flex-shrink: 0; }
+.ov-hero-top .pub-login-btn { margin-left: auto; }
+@media (max-width: 640px) { .pub-login-btn span { display: none; } .pub-login-btn { padding: 8px; } }
+
 .pub-wrap { max-width: 1240px; margin: 0 auto; padding: 24px 28px; }
 .pub-summary {
   background: #fff; border: 1px solid #E7E0D9; border-radius: 16px;

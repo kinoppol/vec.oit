@@ -64,6 +64,10 @@ function ov_ring(int $pct): string
     <div class="ov-hero-top">
       <img src="<?= APP_URL ?>/assets/ovec-logo.jpg" alt="สอศ." class="ov-hero-logo">
       <span class="ov-hero-org">สำนักงานคณะกรรมการการอาชีวศึกษา</span>
+      <a class="pub-login-btn" href="<?= APP_URL ?>/auth.php?mode=login">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+        <span>เข้าสู่ระบบ</span>
+      </a>
     </div>
     <h1 class="ov-hero-title">การเปิดเผยข้อมูลสาธารณะ<span> (OIT)</span></h1>
     <p class="ov-hero-tagline">โปร่งใส · ตรวจสอบได้ · เปิดเผยต่อสาธารณะ</p>
