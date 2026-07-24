@@ -46,8 +46,9 @@ if ($action === 'indicator_detail') {
     $ind = $stmt->fetch();
     if (!$ind) json_err('Not found', 404);
 
-    // A data-entry user may only open indicators assigned to them
-    if ($authUser['role'] === 'user' && !user_owns_indicator((int)$authUser['id'], $schoolId, $id)) {
+    // A data-entry user may only open indicators they can access: responsible
+    // (directly or via position), an approved assistant, or a task assignee.
+    if ($authUser['role'] === 'user' && !user_can_access_indicator((int)$authUser['id'], $schoolId, $id)) {
         json_err('คุณไม่ได้รับมอบหมายตัวชี้วัดนี้', 403);
     }
 
