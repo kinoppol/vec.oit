@@ -202,6 +202,10 @@ $pageTitle = match($mode) {
         <input type="password" name="password" placeholder="รหัสผ่าน" autocomplete="current-password">
         <button type="submit" class="btn-primary btn-full mt-5">เข้าสู่ระบบ</button>
       </form>
+      <a href="<?= APP_URL ?>/public.php" class="btn-outline btn-full" style="margin-top:12px;justify-content:center;gap:8px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="3" y1="12" x2="21" y2="12"/><path d="M12 3a14.5 14.5 0 0 1 0 18 14.5 14.5 0 0 1 0-18z"/></svg>
+        ไปยังหน้าแสดงผลสาธารณะ
+      </a>
       <div class="auth-hint">ชื่อผู้ใช้คือ <strong>เลขประจำตัวประชาชน</strong> · รหัสผ่านเริ่มต้นระบบจะสุ่มให้โดยอัตโนมัติ และต้องเปลี่ยนเมื่อเข้าใช้งานครั้งแรก</div>
       <div class="auth-switch">สถานศึกษายังไม่มีบัญชี? <a href="?mode=register">สมัครใช้งานระบบ</a></div>
     </div>
