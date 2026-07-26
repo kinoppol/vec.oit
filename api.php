@@ -436,6 +436,7 @@ function addEvidence(): never {
     $name     = trim($_POST['name'] ?? '');
     $url      = trim($_POST['url'] ?? '');
     $note     = trim($_POST['note'] ?? '');
+    $group    = trim($_POST['group_label'] ?? '') ?: null;
     $linkType = $_POST['link_type'] ?? 'url';
     if (!$indId) json_err('ข้อมูลไม่ครบ');
 
@@ -459,8 +460,8 @@ function addEvidence(): never {
 
     $sort = ev_next_sort($schoolId, $indId);
     $ins  = db()->prepare('
-        INSERT INTO evidences (school_id, indicator_id, task_id, created_by, accepted, accepted_by, accepted_at, type, title, url, file_path, note, sort_order)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO evidences (school_id, indicator_id, task_id, created_by, accepted, accepted_by, accepted_at, type, title, url, file_path, note, group_label, sort_order)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ');
     $created = 0;
 
@@ -486,13 +487,13 @@ function addEvidence(): never {
             $base  = pathinfo($fn, PATHINFO_FILENAME);
             $title = $name !== '' ? ($multi ? $name . ' — ' . $base : $name) : $base;
             $type  = in_array($ext, EV_IMAGE_EXT) ? 'image' : 'file';
-            $ins->execute([$schoolId, $indId, $taskId, $userId, $autoAccept, $acceptedBy, $acceptedAt, $type, $title, null, $newName, $note ?: null, $sort++]);
+            $ins->execute([$schoolId, $indId, $taskId, $userId, $autoAccept, $acceptedBy, $acceptedAt, $type, $title, null, $newName, $note ?: null, $group, $sort++]);
             $created++;
         }
         if ($created === 0) json_err('ไม่พบไฟล์ที่อัปโหลด');
     } else {
         if ($name === '') json_err('กรุณากรอกชื่อหลักฐาน');
-        $ins->execute([$schoolId, $indId, $taskId, $userId, $autoAccept, $acceptedBy, $acceptedAt, 'link', $name, $url ?: null, null, $note ?: null, $sort]);
+        $ins->execute([$schoolId, $indId, $taskId, $userId, $autoAccept, $acceptedBy, $acceptedAt, 'link', $name, $url ?: null, null, $note ?: null, $group, $sort]);
         $created = 1;
     }
 
@@ -538,6 +539,7 @@ function editEvidence(): never {
     $name     = trim($_POST['name'] ?? '');
     $url      = trim($_POST['url'] ?? '');
     $note     = trim($_POST['note'] ?? '');
+    $group    = trim($_POST['group_label'] ?? '') ?: null;
     $linkType = $_POST['link_type'] ?? 'url';
     if (!$evId || !$name) json_err('กรุณากรอกชื่อหลักฐาน');
 
@@ -586,8 +588,8 @@ function editEvidence(): never {
         $type     = 'link';
     }
 
-    db()->prepare('UPDATE evidences SET type = ?, title = ?, url = ?, file_path = ?, note = ? WHERE id = ?')
-        ->execute([$type, $name, $url ?: null, $filePath, $note ?: null, $evId]);
+    db()->prepare('UPDATE evidences SET type = ?, title = ?, url = ?, file_path = ?, note = ?, group_label = ? WHERE id = ?')
+        ->execute([$type, $name, $url ?: null, $filePath, $note ?: null, $group, $evId]);
     json_ok();
 }
 

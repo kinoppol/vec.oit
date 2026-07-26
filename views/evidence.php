@@ -98,6 +98,18 @@ $selectedId = isset($_GET['indicator']) ? (int)$_GET['indicator'] : 0;
         <input type="text" name="name" id="evName" class="form-input" required maxlength="255" placeholder="เช่น ประกาศแต่งตั้งคณะทำงาน">
       </div>
       <div class="form-group">
+        <label class="form-label">ประเด็นที่พิจารณา (จัดกลุ่ม) <span class="form-hint" style="display:inline">— ไม่บังคับ</span></label>
+        <input type="text" name="group_label" id="evGroup" class="form-input" list="evGroupList" maxlength="200"
+               placeholder="เว้นว่างถ้าไม่ต้องจัดกลุ่ม เช่น รายงาน SAR รายปี">
+        <datalist id="evGroupList">
+          <?php
+          $gStmt = db()->prepare("SELECT DISTINCT group_label FROM evidences WHERE school_id = ? AND group_label IS NOT NULL AND group_label <> '' ORDER BY group_label");
+          $gStmt->execute([$schoolId]);
+          foreach ($gStmt->fetchAll(PDO::FETCH_COLUMN) as $gl) echo '<option value="' . e($gl) . '"></option>';
+          ?>
+        </datalist>
+      </div>
+      <div class="form-group">
         <label class="form-label">ประเภทลิงก์</label>
         <div class="link-type-tabs">
           <label class="link-tab"><input type="radio" name="link_type" value="url" checked> URL</label>

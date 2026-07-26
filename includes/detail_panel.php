@@ -58,6 +58,7 @@ $renderEv = function (array $ev, bool $draggable = true) use ($ind, $canManage, 
           <?php endif; ?>
           <span class="ev-badge <?= $accepted ? 'ev-ok' : 'ev-wait' ?>"><?= $accepted ? 'เผยแพร่ได้' : 'รอตรวจรับ' ?></span>
         </div>
+        <?php if (!empty($ev['group_label'])): ?><div class="ev-group-tag">ประเด็น: <?= e($ev['group_label']) ?></div><?php endif; ?>
         <?php if ($ev['note']): ?><div class="ev-note"><?= e($ev['note']) ?></div><?php endif; ?>
         <div class="ev-meta">
           <?php if (!empty($ev['creator_name'])): ?>
@@ -76,7 +77,7 @@ $renderEv = function (array $ev, bool $draggable = true) use ($ind, $canManage, 
         <?php endif; ?>
         <?php if ($mine || $canManage): ?>
         <button class="icon-btn ev-edit" title="แก้ไขหลักฐาน"
-                onclick="openEvEdit(<?= e(json_encode(['id'=>(int)$ev['id'],'ind_id'=>(int)$ind['id'],'title'=>$ev['title'],'url'=>$ev['url'],'file_path'=>$ev['file_path'],'note'=>$ev['note']], JSON_UNESCAPED_UNICODE)) ?>)">
+                onclick="openEvEdit(<?= e(json_encode(['id'=>(int)$ev['id'],'ind_id'=>(int)$ind['id'],'title'=>$ev['title'],'url'=>$ev['url'],'file_path'=>$ev['file_path'],'note'=>$ev['note'],'group'=>$ev['group_label']], JSON_UNESCAPED_UNICODE)) ?>)">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         </button>
         <button class="icon-btn icon-btn-danger ev-del" title="ลบหลักฐาน" onclick="deleteEvidence(<?= $ev['id'] ?>, <?= $ind['id'] ?>)">

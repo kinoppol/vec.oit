@@ -518,6 +518,7 @@ function openEvEdit(data) {
     document.getElementById('evTaskId').value = '';
     document.getElementById('evName').value   = data.title || '';
     document.getElementById('evNote').value   = data.note || '';
+    document.getElementById('evGroup').value  = data.group || '';
     document.getElementById('evModalTitle').textContent = 'แก้ไขหลักฐาน';
     document.getElementById('evSubmitBtn').textContent  = 'บันทึกการแก้ไข';
     document.getElementById('evFileInput')?.removeAttribute('multiple'); // edit = single file

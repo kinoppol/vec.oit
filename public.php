@@ -69,32 +69,54 @@ $total    = max(1, (int)$stats['total']);
 $doneDash = $circ * (int)$stats['done'] / $total;
 $progDash = $circ * (int)$stats['prog'] / $total;
 
-/** Render the evidence list HTML for one indicator (public, read-only) */
+/** Render a single evidence <div> (public, read-only) */
+function render_pub_ev_item(array $ev): string
+{
+    static $linkIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+    static $fileIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h11l5 5v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M14 4v5h5"/></svg>';
+    $isImg   = ($ev['type'] === 'image') || ($ev['file_path'] && in_array(strtolower(pathinfo($ev['file_path'], PATHINFO_EXTENSION)), ['jpg','jpeg','png','gif','webp']));
+    $fileUrl = $ev['file_path'] ? APP_URL . '/uploads/' . rawurlencode($ev['file_path']) : null;
+    $out = '<div class="pub-ev-item">';
+    if ($isImg && $fileUrl) {
+        $out .= '<a href="' . $fileUrl . '" target="_blank" class="pub-ev-thumb"><img src="' . $fileUrl . '" alt="' . e($ev['title']) . '" loading="lazy"></a>';
+        $out .= '<a href="' . $fileUrl . '" target="_blank" class="pub-ev-link">' . e($ev['title']) . '</a>';
+    } elseif (!empty($ev['url'])) {
+        $out .= '<a href="' . e($ev['url']) . '" target="_blank" rel="noopener" class="pub-ev-link">' . $linkIcon . e($ev['title']) . '</a>';
+    } elseif ($fileUrl) {
+        $out .= '<a href="' . $fileUrl . '" target="_blank" class="pub-ev-link">' . $fileIcon . e($ev['title']) . '</a>';
+    } else {
+        $out .= '<span class="pub-ev-name">' . e($ev['title']) . '</span>';
+    }
+    if (!empty($ev['note'])) $out .= '<span class="pub-ev-note">' . e($ev['note']) . '</span>';
+    return $out . '</div>';
+}
+
+/** Render the evidence for one indicator, grouped by "ประเด็นที่พิจารณา" (group_label). */
 function render_pub_ev(array $ind): string
 {
     if (empty($ind['published'])) return '<div class="pub-no-ev">ยังไม่มีเอกสารเผยแพร่</div>';
     if (empty($ind['evidences'])) return '<div class="pub-no-ev">ยังไม่มีหลักฐานที่เผยแพร่</div>';
-    $linkIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
-    $fileIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h11l5 5v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M14 4v5h5"/></svg>';
-    $out = '<div class="pub-ev-list">';
+
+    // Split into ungrouped + named groups (preserving order of appearance)
+    $free = []; $groups = [];
     foreach ($ind['evidences'] as $ev) {
-        $isImg   = ($ev['type'] === 'image') || ($ev['file_path'] && in_array(strtolower(pathinfo($ev['file_path'], PATHINFO_EXTENSION)), ['jpg','jpeg','png','gif','webp']));
-        $fileUrl = $ev['file_path'] ? APP_URL . '/uploads/' . rawurlencode($ev['file_path']) : null;
-        $out .= '<div class="pub-ev-item">';
-        if ($isImg && $fileUrl) {
-            $out .= '<a href="' . $fileUrl . '" target="_blank" class="pub-ev-thumb"><img src="' . $fileUrl . '" alt="' . e($ev['title']) . '" loading="lazy"></a>';
-            $out .= '<a href="' . $fileUrl . '" target="_blank" class="pub-ev-link">' . e($ev['title']) . '</a>';
-        } elseif (!empty($ev['url'])) {
-            $out .= '<a href="' . e($ev['url']) . '" target="_blank" rel="noopener" class="pub-ev-link">' . $linkIcon . e($ev['title']) . '</a>';
-        } elseif ($fileUrl) {
-            $out .= '<a href="' . $fileUrl . '" target="_blank" class="pub-ev-link">' . $fileIcon . e($ev['title']) . '</a>';
-        } else {
-            $out .= '<span class="pub-ev-name">' . e($ev['title']) . '</span>';
-        }
-        if (!empty($ev['note'])) $out .= '<span class="pub-ev-note">' . e($ev['note']) . '</span>';
+        $g = trim((string)($ev['group_label'] ?? ''));
+        if ($g === '') $free[] = $ev;
+        else { $groups[$g] ??= []; $groups[$g][] = $ev; }
+    }
+
+    $out = '';
+    if ($free) {
+        $out .= '<div class="pub-ev-list">';
+        foreach ($free as $ev) $out .= render_pub_ev_item($ev);
         $out .= '</div>';
     }
-    return $out . '</div>';
+    foreach ($groups as $label => $items) {
+        $out .= '<div class="pub-ev-group"><div class="pub-ev-group-hdr">' . e($label) . '</div><div class="pub-ev-list">';
+        foreach ($items as $ev) $out .= render_pub_ev_item($ev);
+        $out .= '</div></div>';
+    }
+    return $out;
 }
 
 // Section title lookup by code (for menu grouping)
