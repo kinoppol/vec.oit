@@ -491,9 +491,19 @@ async function unacceptEvidence(id) {
 document.getElementById('docTaskForm')?.addEventListener('submit', docTaskSubmit);
 
 // ── Evidence Modal ────────────────────────────────────────
+// Fill the "ประเด็นที่พิจารณา" datalist with the group labels already used on this indicator
+function fillEvGroupList() {
+    const dl = document.getElementById('evGroupList');
+    if (!dl) return;
+    let groups = [];
+    try { groups = teamData().groups || []; } catch (e) {}
+    dl.innerHTML = groups.map(g => '<option value="' + g.replace(/"/g, '&quot;') + '"></option>').join('');
+}
+
 function openEvModal(indId, taskId) {
     const modal = document.getElementById('evModal');
     if (!modal) return;
+    fillEvGroupList();
     document.getElementById('evForm')?.reset();
     document.getElementById('evAction').value = 'add_evidence';
     document.getElementById('evEvId').value   = '';
@@ -511,6 +521,7 @@ function openEvModal(indId, taskId) {
 function openEvEdit(data) {
     const modal = document.getElementById('evModal');
     if (!modal) return;
+    fillEvGroupList();
     document.getElementById('evForm')?.reset();
     document.getElementById('evAction').value = 'edit_evidence';
     document.getElementById('evEvId').value   = data.id;

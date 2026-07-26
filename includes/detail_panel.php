@@ -308,8 +308,18 @@ $renderEv = function (array $ev, bool $draggable = true) use ($ind, $canManage, 
     </div>
   </div>
 
+  <?php
+  // Distinct "ประเด็นที่พิจารณา" already used on this indicator — for the evidence group autocomplete
+  $indGroups = [];
+  foreach ($evidences as $ev) {
+      $gl = trim((string)($ev['group_label'] ?? ''));
+      if ($gl !== '' && !in_array($gl, $indGroups, true)) $indGroups[] = $gl;
+  }
+  sort($indGroups);
+  ?>
   <script type="application/json" class="team-data"><?= json_encode([
       'ind'            => (int)$ind['id'],
+      'groups'         => $indGroups,
       'proposeOnly'    => !$isSchoolAdmin,
       'schoolUsers'    => array_map(fn($u) => ['id'=>(int)$u['id'],'name'=>$u['full_name'],'nick'=>$u['nickname']??'','pos'=>$u['position']??'','pic'=>user_avatar_url($u)], $schoolUsers),
       'positions'      => array_map(fn($p) => ['id'=>(int)$p['id'],'name'=>$p['name'],'n'=>(int)$p['n'],'central'=>(bool)$p['central']], $schoolPositions ?? []),
