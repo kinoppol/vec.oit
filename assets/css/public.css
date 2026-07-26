@@ -148,6 +148,10 @@ img { display: block; max-width: 100%; }
 .pub-detail-ev-hdr { font-size: 14px; font-weight: 800; color: #221C18; margin-bottom: 12px; }
 .pub-detail .pub-ev-list { padding-left: 0; gap: 10px; }
 .pub-detail .pub-ev-item { padding: 10px 12px; border: 1px solid #EFE9E3; border-radius: 10px; }
+/* Grouped evidence: header + its items sit inside an indented, left-ruled block */
+.pub-detail .pub-ev-group { margin-top: 18px; padding-left: 16px; border-left: 3px solid #E4D5CC; }
+.pub-detail .pub-ev-group-hdr { margin-left: 0; margin-bottom: 10px; }
+.pub-detail .pub-ev-group .pub-ev-list { padding-left: 0; margin-top: 0; }
 .pub-detail .pub-no-ev { padding: 24px; text-align: center; background: #FAF7F3; border-radius: 12px; font-style: italic; }
 
 @media (max-width: 900px) {
