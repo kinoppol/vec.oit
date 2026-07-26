@@ -15,6 +15,59 @@
     window.addEventListener('resize', () => { if (window.innerWidth > 820) close(); });
 })();
 
+// ── Deadline countdown ────────────────────────────────────
+(function () {
+    const box  = document.getElementById('deadlineBox');
+    if (!box) return;
+    const text = document.getElementById('deadlineText');
+    const iso  = box.dataset.deadline;
+    if (!iso) return; // no deadline set
+
+    const target = new Date(iso).getTime();
+    const two = n => String(n).padStart(2, '0');
+
+    function tick() {
+        const diff = target - Date.now();
+        box.classList.remove('deadline-warn', 'deadline-over');
+        if (diff <= 0) {
+            const over = Math.abs(diff);
+            const d = Math.floor(over / 86400000);
+            text.textContent = 'เลยกำหนดแล้ว ' + (d > 0 ? d + ' วัน' : '') +
+                two(Math.floor(over / 3600000) % 24) + ':' + two(Math.floor(over / 60000) % 60) + ':' + two(Math.floor(over / 1000) % 60);
+            box.classList.add('deadline-over');
+            return;
+        }
+        const d = Math.floor(diff / 86400000);
+        const h = Math.floor(diff / 3600000) % 24;
+        const m = Math.floor(diff / 60000) % 60;
+        const s = Math.floor(diff / 1000) % 60;
+        text.textContent = 'เหลืออีก ' + (d > 0 ? d + ' วัน ' : '') + two(h) + ':' + two(m) + ':' + two(s);
+        if (diff < 3 * 86400000) box.classList.add('deadline-warn'); // < 3 days
+    }
+    tick();
+    setInterval(tick, 1000);
+})();
+
+// Set-deadline modal (schooladmin)
+function openDeadline() { document.getElementById('deadlineModal')?.classList.remove('hidden'); }
+function clearDeadline() {
+    apiPost({ action: 'set_deadline', year_code: YEAR_CODE, deadline: '' }).then(r => {
+        r.ok ? location.reload() : showToast(r.error, 'error');
+    });
+}
+(function () {
+    const form = document.getElementById('deadlineForm');
+    if (!form) return;
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const val = document.getElementById('deadlineInput').value;
+        if (!val) { showToast('กรุณาเลือกวันเวลา', 'error'); return; }
+        apiPost({ action: 'set_deadline', year_code: YEAR_CODE, deadline: val }).then(r => {
+            r.ok ? location.reload() : showToast(r.error, 'error');
+        });
+    });
+})();
+
 // ── Toast ────────────────────────────────────────────────
 let toastTimer;
 function showToast(msg, type = 'ok') {

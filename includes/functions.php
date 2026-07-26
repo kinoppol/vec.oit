@@ -461,6 +461,24 @@ function all_years(): array
     return db()->query('SELECT * FROM fiscal_years ORDER BY year_code DESC')->fetchAll();
 }
 
+/** The data-collection deadline for a school in a fiscal year ('Y-m-d H:i:s') or null. */
+function school_deadline(int $schoolId, string $yearCode): ?string
+{
+    if (!$schoolId || $yearCode === '') return null;
+    try {
+        $s = db()->prepare('
+            SELECT sd.deadline FROM school_deadlines sd
+            JOIN fiscal_years fy ON fy.id = sd.fiscal_year_id
+            WHERE sd.school_id = ? AND fy.year_code = ?
+        ');
+        $s->execute([$schoolId, $yearCode]);
+        $d = $s->fetchColumn();
+        return $d ?: null;
+    } catch (PDOException $e) {
+        return null; // table may not exist yet (migration pending)
+    }
+}
+
 function school_emblem_url(array $school): string
 {
     if (!empty($school['emblem_path'])) {

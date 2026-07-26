@@ -93,6 +93,10 @@ $roleLabel = match($role) {
 
 $logoUrl = $school ? school_emblem_url($school) : APP_URL . '/assets/ovec-logo.jpg';
 $publicLink = APP_URL . '/public.php?slug=' . ($school['slug'] ?? '') . '&year=' . $yearCode;
+
+// Data-collection deadline (schooladmin/user only) — drives the countdown widget
+$deadline    = $schoolId ? school_deadline($schoolId, $yearCode) : null;
+$deadlineIso = $deadline ? date('c', strtotime($deadline)) : '';
 ?>
 <!DOCTYPE html>
 <html lang="th" data-theme="<?= e($theme) ?>">
@@ -201,6 +205,17 @@ $publicLink = APP_URL . '/public.php?slug=' . ($school['slug'] ?? '') . '&year='
         <span class="year-badge"><?= e($yearLabel) ?></span>
       </div>
       <div class="topbar-right">
+        <?php if (in_array($role, ['schooladmin','user'])): ?>
+        <div class="deadline-box <?= $deadline ? '' : 'deadline-unset' ?>" id="deadlineBox" data-deadline="<?= e($deadlineIso) ?>">
+          <svg class="deadline-ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          <span class="deadline-text" id="deadlineText"><?= $deadline ? 'กำลังคำนวณ…' : 'ยังไม่กำหนดเส้นตาย' ?></span>
+          <?php if ($role === 'schooladmin'): ?>
+          <button class="deadline-edit" onclick="openDeadline()" title="กำหนดวันเวลาส่งข้อมูล">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <?php endif; ?>
+        </div>
+        <?php endif; ?>
         <div class="year-switcher">
           <?php foreach ($years as $y): ?>
           <a href="?year=<?= e($y['year_code']) ?>&view=<?= e($view) ?>"
@@ -250,6 +265,35 @@ $publicLink = APP_URL . '/public.php?slug=' . ($school['slug'] ?? '') . '&year='
     </div>
   </div>
 </div>
+
+<?php if ($role === 'schooladmin'): ?>
+<!-- Set deadline modal -->
+<div class="modal-backdrop hidden" id="deadlineModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">กำหนดวันเวลาที่ต้องรวบรวมข้อมูลให้แล้วเสร็จ</h2>
+      <button class="modal-close" onclick="document.getElementById('deadlineModal').classList.add('hidden')">✕</button>
+    </div>
+    <form id="deadlineForm" class="modal-body">
+      <div class="alert alert-info" style="margin-bottom:16px">
+        เส้นตายของ <b><?= e($yearLabel) ?></b> — ระบบจะแสดงเวลานับถอยหลังทุกหน้าในระบบ (ยกเว้นหน้าสาธารณะ)
+      </div>
+      <div class="form-group">
+        <label class="form-label">วันเวลาที่ต้องแล้วเสร็จ</label>
+        <input type="datetime-local" id="deadlineInput" class="form-input"
+               value="<?= $deadline ? e(date('Y-m-d\TH:i', strtotime($deadline))) : '' ?>">
+      </div>
+      <div class="modal-footer" style="justify-content:space-between">
+        <?php if ($deadline): ?><button type="button" class="btn btn-ghost btn-sm" onclick="clearDeadline()">ล้างเส้นตาย</button><?php else: ?><span></span><?php endif; ?>
+        <div style="display:flex;gap:10px">
+          <button type="button" class="btn btn-ghost" onclick="document.getElementById('deadlineModal').classList.add('hidden')">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary">บันทึก</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+<?php endif; ?>
 
 <script>
 const APP_URL   = '<?= APP_URL ?>';

@@ -230,6 +230,7 @@ match ($action) {
     'update_status'    => updateStatus(),
     'assign_indicator' => assignIndicator(),
     'update_slug'      => updateSlug(),
+    'set_deadline'     => setDeadline(),
     'add_evidence'     => addEvidence(),
     'edit_evidence'    => editEvidence(),
     'delete_evidence'  => deleteEvidence(),
@@ -392,6 +393,32 @@ function updateSlug(): never {
     db()->prepare('UPDATE schools SET slug = ? WHERE id = ?')->execute([$slug, $schoolId]);
     $_SESSION['user']['school']['slug'] = $slug; // keep session in sync
     json_ok(['slug' => $slug]);
+}
+
+function setDeadline(): never {
+    global $schoolId, $userId, $role;
+    if ($role !== 'schooladmin') json_err('Forbidden', 403);
+    $yc = trim($_POST['year_code'] ?? '');
+    $dl = trim($_POST['deadline'] ?? ''); // datetime-local ('Y-m-d\TH:i') or '' to clear
+
+    $fy = db()->prepare('SELECT id FROM fiscal_years WHERE year_code = ?');
+    $fy->execute([$yc]);
+    $fyId = $fy->fetchColumn();
+    if (!$fyId) json_err('ไม่พบปีงบประมาณ', 404);
+
+    if ($dl === '') {
+        db()->prepare('DELETE FROM school_deadlines WHERE school_id = ? AND fiscal_year_id = ?')->execute([$schoolId, $fyId]);
+        json_ok(['deadline' => null]);
+    }
+    $ts = strtotime($dl);
+    if ($ts === false) json_err('รูปแบบวันเวลาไม่ถูกต้อง');
+    $val = date('Y-m-d H:i:s', $ts);
+    db()->prepare('
+        INSERT INTO school_deadlines (school_id, fiscal_year_id, deadline, updated_by)
+        VALUES (?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE deadline = VALUES(deadline), updated_by = VALUES(updated_by)
+    ')->execute([$schoolId, $fyId, $val, $userId]);
+    json_ok(['deadline' => $val]);
 }
 
 function ev_next_sort(int $schoolId, int $indId): int {
